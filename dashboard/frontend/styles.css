@@ -101,6 +101,20 @@ main {
   color: var(--muted);
 }
 
+.toggle {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+  font-size: 13px;
+  user-select: none;
+}
+.toggle input { width: auto; padding: 0; margin: 0; }
+
+.live-on {
+  color: #26a69a;
+  font-weight: 600;
+}
+
 /* Indicators */
 .indicator-add {
   display: flex;

@@ -9,6 +9,7 @@ const addIndicatorEl = document.getElementById("add-indicator");
 const indicatorListEl = document.getElementById("indicator-list");
 const legendMainEl = document.getElementById("legend-main");
 const legendOscEl = document.getElementById("legend-osc");
+const liveToggleEl = document.getElementById("live-toggle");
 
 const chartTheme = {
   layout: { background: { color: "#161b25" }, textColor: "#e6e9ef" },
@@ -60,6 +61,7 @@ function saveState() {
     const payload = {
       symbol: symbolEl.value,
       timeframe: timeframeEl.value,
+      live: !!liveToggleEl.checked,
       indicators: state.indicators.map((i) => ({
         type: i.type,
         params: { ...i.params },
@@ -82,6 +84,9 @@ function loadState() {
     }
     if (payload.timeframe && [...timeframeEl.options].some((o) => o.value === payload.timeframe)) {
       timeframeEl.value = payload.timeframe;
+    }
+    if (typeof payload.live === "boolean") {
+      liveToggleEl.checked = payload.live;
     }
     if (Array.isArray(payload.indicators)) {
       payload.indicators.forEach((saved) => {
@@ -397,10 +402,10 @@ async function recomputeIndicators() {
   }
 }
 
-async function loadCandles() {
+async function loadCandles({ silent = false } = {}) {
   const symbol = symbolEl.value;
   const timeframe = timeframeEl.value;
-  statusEl.textContent = `Carico ${symbol} (${timeframe})…`;
+  if (!silent) statusEl.textContent = `Carico ${symbol} (${timeframe})…`;
   try {
     const url = `/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${timeframe}&limit=500`;
     const res = await fetch(url);
@@ -408,10 +413,15 @@ async function loadCandles() {
     const data = await res.json();
     state.candles = data;
     state.timeIndex = new Map(data.map((c, i) => [c.time, i]));
-    state.hoverTime = null;
+    if (!silent) state.hoverTime = null;
     candleSeries.setData(data);
-    chart.timeScale().fitContent();
-    statusEl.textContent = `${data.length} candele caricate.`;
+    if (!silent) chart.timeScale().fitContent();
+    if (silent) {
+      const now = new Date().toLocaleTimeString();
+      statusEl.innerHTML = `<span class="live-on">● LIVE</span> · ${data.length} candele · agg. ${now}`;
+    } else {
+      statusEl.textContent = `${data.length} candele caricate.`;
+    }
     renderLegends();
     await recomputeIndicators();
   } catch (err) {
@@ -419,10 +429,66 @@ async function loadCandles() {
   }
 }
 
-reloadEl.addEventListener("click", loadCandles);
-symbolEl.addEventListener("change", () => { saveState(); loadCandles(); });
-timeframeEl.addEventListener("change", () => { saveState(); loadCandles(); });
+// ---- Auto-refresh ----
+
+// intervallo (ms) calibrato sul timeframe: scala con la durata della candela
+const POLL_INTERVALS_MS = {
+  "1m":  15_000,
+  "5m":  20_000,
+  "15m": 30_000,
+  "1h":  60_000,
+  "4h":  120_000,
+  "1d":  300_000,
+};
+
+let pollTimer = null;
+
+function pollIntervalMs() {
+  return POLL_INTERVALS_MS[timeframeEl.value] || 60_000;
+}
+
+function stopPolling() {
+  if (pollTimer != null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function startPolling() {
+  stopPolling();
+  if (!liveToggleEl.checked) return;
+  pollTimer = setInterval(() => {
+    if (document.hidden) return;  // skip tick se la tab non è visibile
+    loadCandles({ silent: true });
+  }, pollIntervalMs());
+}
+
+function onLiveToggle() {
+  saveState();
+  if (liveToggleEl.checked) {
+    startPolling();
+  } else {
+    stopPolling();
+    statusEl.textContent = `${state.candles.length} candele caricate.`;
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!liveToggleEl.checked) return;
+  if (document.hidden) {
+    stopPolling();
+  } else {
+    // refresh immediato al ritorno + ricomincia polling
+    loadCandles({ silent: true });
+    startPolling();
+  }
+});
+
+reloadEl.addEventListener("click", () => loadCandles());
+symbolEl.addEventListener("change", () => { saveState(); loadCandles(); startPolling(); });
+timeframeEl.addEventListener("change", () => { saveState(); loadCandles(); startPolling(); });
 addIndicatorEl.addEventListener("click", addIndicator);
+liveToggleEl.addEventListener("change", onLiveToggle);
 
 function savedSymbol() {
   try {
@@ -467,6 +533,7 @@ async function init() {
   toggleOscPane();
   resize();
   await loadCandles();
+  if (liveToggleEl.checked) startPolling();
 }
 
 init();
