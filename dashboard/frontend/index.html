@@ -9,37 +9,53 @@
 <body>
   <header>
     <h1>TV Dashboard</h1>
-    <span class="subtitle">Fase 1 — Grafico base</span>
+    <span class="subtitle">Fase 1 — Grafico + indicatori</span>
   </header>
 
   <main>
     <aside class="sidebar">
-      <h2>Asset</h2>
-      <label>
-        Simbolo
-        <select id="symbol">
-          <option value="BTC/USDT" selected>BTC/USDT</option>
-          <option value="ETH/USDT">ETH/USDT</option>
-        </select>
-      </label>
+      <section>
+        <h2>Asset</h2>
+        <label>
+          Simbolo
+          <select id="symbol">
+            <option value="BTC/USDT" selected>BTC/USDT</option>
+            <option value="ETH/USDT">ETH/USDT</option>
+          </select>
+        </label>
 
-      <label>
-        Timeframe
-        <select id="timeframe">
-          <option value="15m">15 minuti</option>
-          <option value="1h" selected>1 ora</option>
-          <option value="4h">4 ore</option>
-          <option value="1d">1 giorno</option>
-        </select>
-      </label>
+        <label>
+          Timeframe
+          <select id="timeframe">
+            <option value="15m">15 minuti</option>
+            <option value="1h" selected>1 ora</option>
+            <option value="4h">4 ore</option>
+            <option value="1d">1 giorno</option>
+          </select>
+        </label>
 
-      <button id="reload">Aggiorna grafico</button>
+        <button id="reload">Aggiorna grafico</button>
+        <p id="status" class="status">In attesa…</p>
+      </section>
 
-      <p id="status" class="status">In attesa…</p>
+      <section>
+        <h2>Indicatori</h2>
+        <div class="indicator-add">
+          <select id="indicator-type">
+            <option value="sma">SMA</option>
+            <option value="ema">EMA</option>
+            <option value="rsi">RSI</option>
+            <option value="macd">MACD</option>
+          </select>
+          <button id="add-indicator" class="btn-secondary">Aggiungi</button>
+        </div>
+        <ul id="indicator-list" class="indicator-list"></ul>
+      </section>
     </aside>
 
     <section class="chart-wrap">
-      <div id="chart"></div>
+      <div id="chart" class="pane main-pane"></div>
+      <div id="osc-chart" class="pane osc-pane hidden"></div>
     </section>
   </main>
 
