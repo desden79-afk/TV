@@ -37,12 +37,20 @@ TradingView verrà usato solo per visualizzare i grafici (libreria gratuita
 ### Fase 0 — Fondamenta
 - Creazione account (GitHub, Binance Testnet, TradingView free)
 - Setup repository e ambiente di sviluppo
-- **Stato:** in corso
+- **Stato:** completata
 
 ### Fase 1 — Dashboard con indicatori personalizzabili
-- Grafico di un asset (es. BTC/USDT)
+- Grafico di un asset (es. BTC/USDT) ✓
 - Pannello per aggiungere/configurare indicatori
 - Aggiornamento live al variare dei parametri
+- **Stato:** in corso — scheletro web pronto, connessione exchange verificata
+
+#### Nota sull'exchange usato per i dati
+Il container di sviluppo è geo-bloccato da `binance.com` (HTTP 451) e da
+`testnet.binance.vision`. Per la dashboard usiamo `binance.us` (variabile
+`TV_EXCHANGE`, default `binanceus`) che restituisce gli stessi OHLCV per
+i pair principali. Quando arriveremo al paper trading (Fase 3) valuteremo
+una venue testnet raggiungibile (es. Bybit testnet) oppure un proxy.
 
 ### Fase 2 — Motore di backtesting
 - Definizione strategie (regole di entry/exit)
