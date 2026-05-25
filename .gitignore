@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets — MAI committare chiavi API o file con credenziali
+.env
+.env.*
+!.env.example
+secrets/
+*.key
+config.local.*
+
+# Dati scaricati (possono essere grandi e si riscaricano)
+data/raw/
+data/cache/
+*.csv
+*.parquet
+!data/sample/*.csv
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Log
+*.log
+logs/
+
+# Node (per la dashboard frontend, se necessario)
+node_modules/
+dist/
+build/
