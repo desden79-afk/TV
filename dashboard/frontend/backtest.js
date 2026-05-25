@@ -319,7 +319,7 @@ async function runBacktest() {
     renderMetrics(data.metrics);
     btCandleSeries.setData(data.candles);
     btCandleSeries.setMarkers(tradeMarkers(data.trades));
-    btEquitySeries.setData(data.equity_curve);
+    btEquitySeries.setData(data.equity_curve.map((p) => ({ time: p.time, value: p.equity })));
     btChart.timeScale().fitContent();
     btEquityChart.timeScale().fitContent();
     renderTradesTable(data.trades);
