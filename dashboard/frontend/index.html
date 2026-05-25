@@ -9,10 +9,14 @@
 <body>
   <header>
     <h1>TV Dashboard</h1>
-    <span class="subtitle">Fase 1 — Grafico + indicatori</span>
+    <nav class="tabs">
+      <button data-tab="chart" class="tab-btn active">Grafico</button>
+      <button data-tab="backtest" class="tab-btn">Backtest</button>
+    </nav>
   </header>
 
   <main>
+  <div class="tab-panel" data-tab="chart">
     <aside class="sidebar">
       <section>
         <h2>Asset</h2>
@@ -68,9 +72,81 @@
         <div id="legend-osc" class="legend"></div>
       </div>
     </section>
+  </div>
+
+  <div class="tab-panel hidden" data-tab="backtest">
+    <aside class="sidebar">
+      <section>
+        <h2>Strategia</h2>
+        <label>
+          Preset
+          <select id="bt-preset">
+            <option value="">— scegli un preset —</option>
+            <option value="rsi_rebound">RSI rebound + EMA filter</option>
+            <option value="golden_cross">EMA golden cross</option>
+            <option value="macd_signal">MACD signal cross</option>
+          </select>
+        </label>
+        <label>
+          JSON strategia
+          <textarea id="bt-strategy" rows="14" spellcheck="false"></textarea>
+        </label>
+      </section>
+
+      <section>
+        <h2>Mercato</h2>
+        <label>Simbolo
+          <select id="bt-symbol"></select>
+        </label>
+        <label>Timeframe
+          <select id="bt-timeframe">
+            <option value="15m">15 minuti</option>
+            <option value="1h" selected>1 ora</option>
+            <option value="4h">4 ore</option>
+            <option value="1d">1 giorno</option>
+          </select>
+        </label>
+        <label>N. candele storiche
+          <input id="bt-limit" type="number" min="100" max="1000" step="50" value="500" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Costi</h2>
+        <label>Capitale iniziale (USDT)
+          <input id="bt-capital" type="number" min="100" step="100" value="10000" />
+        </label>
+        <label>Fee % per lato
+          <input id="bt-fee" type="number" min="0" step="0.01" value="0.1" />
+        </label>
+        <label>Slippage % per lato
+          <input id="bt-slip" type="number" min="0" step="0.01" value="0.05" />
+        </label>
+      </section>
+
+      <button id="bt-run">Esegui backtest</button>
+      <p id="bt-status" class="status">Pronto.</p>
+    </aside>
+
+    <section class="bt-content">
+      <div id="bt-metrics" class="metrics-grid"></div>
+      <div class="pane-wrap bt-pane">
+        <div id="bt-chart"></div>
+      </div>
+      <div class="pane-wrap bt-pane bt-equity">
+        <div id="bt-equity-chart"></div>
+        <div class="legend bt-equity-legend">Equity curve</div>
+      </div>
+      <div class="bt-trades-wrap">
+        <h3>Trade</h3>
+        <div id="bt-trades-table"></div>
+      </div>
+    </section>
+  </div>
   </main>
 
   <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
   <script src="/app.js"></script>
+  <script src="/backtest.js"></script>
 </body>
 </html>
