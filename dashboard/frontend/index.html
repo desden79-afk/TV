@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TV Dashboard — Fase 1</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>TV Dashboard</h1>
+    <span class="subtitle">Fase 1 — Grafico base</span>
+  </header>
+
+  <main>
+    <aside class="sidebar">
+      <h2>Asset</h2>
+      <label>
+        Simbolo
+        <select id="symbol">
+          <option value="BTC/USDT" selected>BTC/USDT</option>
+          <option value="ETH/USDT">ETH/USDT</option>
+        </select>
+      </label>
+
+      <label>
+        Timeframe
+        <select id="timeframe">
+          <option value="15m">15 minuti</option>
+          <option value="1h" selected>1 ora</option>
+          <option value="4h">4 ore</option>
+          <option value="1d">1 giorno</option>
+        </select>
+      </label>
+
+      <button id="reload">Aggiorna grafico</button>
+
+      <p id="status" class="status">In attesa…</p>
+    </aside>
+
+    <section class="chart-wrap">
+      <div id="chart"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
