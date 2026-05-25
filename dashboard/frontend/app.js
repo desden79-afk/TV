@@ -377,6 +377,8 @@ async function recomputeIndicators() {
   const token = ++recomputeToken;
   const body = {
     closes: state.candles.map((c) => c.close),
+    highs: state.candles.map((c) => c.high),
+    lows: state.candles.map((c) => c.low),
     indicators: state.indicators.map((i) => ({ id: i.id, type: i.type, params: i.params })),
   };
   try {

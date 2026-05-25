@@ -63,6 +63,8 @@ class IndicatorSpec(BaseModel):
 
 class IndicatorsRequest(BaseModel):
     closes: list[float]
+    highs: list[float] = Field(default_factory=list)
+    lows: list[float] = Field(default_factory=list)
     indicators: list[IndicatorSpec]
 
 
@@ -71,7 +73,7 @@ def indicators(req: IndicatorsRequest) -> dict[str, Any]:
     results: dict[str, Any] = {}
     for spec in req.indicators:
         try:
-            results[spec.id] = compute_indicator(spec.type, req.closes, spec.params)
+            results[spec.id] = compute_indicator(spec.type, req.closes, spec.params, req.highs, req.lows)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
