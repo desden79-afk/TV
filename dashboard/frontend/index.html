@@ -76,6 +76,9 @@
 
   <div class="tab-panel hidden" data-tab="backtest">
     <aside class="sidebar">
+      <button id="bt-run">Esegui backtest</button>
+      <p id="bt-status" class="status">Pronto.</p>
+
       <section>
         <h2>Strategia</h2>
         <label>
@@ -149,9 +152,6 @@
           <input id="bt-slip" type="number" min="0" step="0.01" value="0.05" />
         </label>
       </section>
-
-      <button id="bt-run">Esegui backtest</button>
-      <p id="bt-status" class="status">Pronto.</p>
     </aside>
 
     <section class="bt-content">
