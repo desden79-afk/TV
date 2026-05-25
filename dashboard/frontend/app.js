@@ -7,6 +7,8 @@ const oscEl = document.getElementById("osc-chart");
 const indicatorTypeEl = document.getElementById("indicator-type");
 const addIndicatorEl = document.getElementById("add-indicator");
 const indicatorListEl = document.getElementById("indicator-list");
+const legendMainEl = document.getElementById("legend-main");
+const legendOscEl = document.getElementById("legend-osc");
 
 const chartTheme = {
   layout: { background: { color: "#161b25" }, textColor: "#e6e9ef" },
@@ -44,8 +46,11 @@ const PALETTE = ["#4ea1ff", "#ffb74d", "#ba68c8", "#80cbc4", "#f06292", "#aed581
 // state.indicators: [{id, type, params, color, primitives:[{remove}]}]
 const state = {
   candles: [],
+  timeIndex: new Map(),  // time -> index in candles
   indicators: [],
+  indicatorResults: {},  // id -> {pane, series: {...}}
   nextId: 1,
+  hoverTime: null,       // tempo correntemente sotto il crosshair
 };
 
 const STORAGE_KEY = "tv-dashboard-state-v1";
@@ -112,6 +117,99 @@ function resize() {
 }
 window.addEventListener("resize", resize);
 new ResizeObserver(resize).observe(chartEl);
+
+// ---- Legend ----
+
+function fmt(value, digits = 2) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 1000) return value.toFixed(digits);
+  if (abs >= 1) return value.toFixed(Math.max(digits, 2));
+  return value.toFixed(Math.max(digits, 4));
+}
+
+function indicatorLabel(ind) {
+  switch (ind.type) {
+    case "sma": return `SMA(${ind.params.period})`;
+    case "ema": return `EMA(${ind.params.period})`;
+    case "rsi": return `RSI(${ind.params.period})`;
+    case "macd": return `MACD(${ind.params.fast},${ind.params.slow},${ind.params.signal})`;
+    default: return ind.type.toUpperCase();
+  }
+}
+
+function valueAtIndex(series, idx) {
+  if (idx < 0 || idx >= series.length) return null;
+  const v = series[idx];
+  return v === null || v === undefined ? null : v;
+}
+
+function renderLegends() {
+  const idx = state.hoverTime != null
+    ? state.timeIndex.get(state.hoverTime)
+    : state.candles.length - 1;
+
+  if (idx == null || idx < 0 || !state.candles[idx]) {
+    legendMainEl.innerHTML = "";
+    legendOscEl.innerHTML = "";
+    return;
+  }
+
+  const c = state.candles[idx];
+  const up = c.close >= c.open;
+  const dirClass = up ? "legend-up" : "legend-down";
+  const date = new Date(c.time * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+
+  const mainRows = [];
+  mainRows.push(`<div class="legend-row"><span class="legend-label">${symbolEl.value}</span><span>${date}</span></div>`);
+  mainRows.push(
+    `<div class="legend-row ${dirClass}">` +
+    `<span><span class="legend-label">O</span> ${fmt(c.open)}</span>` +
+    `<span><span class="legend-label">H</span> ${fmt(c.high)}</span>` +
+    `<span><span class="legend-label">L</span> ${fmt(c.low)}</span>` +
+    `<span><span class="legend-label">C</span> ${fmt(c.close)}</span>` +
+    `<span><span class="legend-label">V</span> ${fmt(c.volume, 4)}</span>` +
+    `</div>`
+  );
+
+  const oscRows = [];
+  state.indicators.forEach((ind) => {
+    const result = state.indicatorResults[ind.id];
+    if (!result) return;
+    const dot = `<span class="legend-dot" style="background:${ind.color}"></span>`;
+    const label = indicatorLabel(ind);
+    if (result.pane === "overlay") {
+      const v = valueAtIndex(result.series.value, idx);
+      mainRows.push(`<div class="legend-row">${dot}<span>${label}: ${fmt(v)}</span></div>`);
+    } else if (ind.type === "rsi") {
+      const v = valueAtIndex(result.series.value, idx);
+      oscRows.push(`<div class="legend-row">${dot}<span>${label}: ${fmt(v)}</span></div>`);
+    } else if (ind.type === "macd") {
+      const m = valueAtIndex(result.series.macd, idx);
+      const s = valueAtIndex(result.series.signal, idx);
+      const h = valueAtIndex(result.series.hist, idx);
+      oscRows.push(
+        `<div class="legend-row">${dot}<span>${label}</span>` +
+        `<span><span class="legend-label">M</span> ${fmt(m, 3)}</span>` +
+        `<span><span class="legend-label">S</span> ${fmt(s, 3)}</span>` +
+        `<span><span class="legend-label">H</span> ${fmt(h, 3)}</span>` +
+        `</div>`
+      );
+    }
+  });
+
+  legendMainEl.innerHTML = mainRows.join("");
+  legendOscEl.innerHTML = oscRows.join("");
+}
+
+function attachCrosshair(targetChart) {
+  targetChart.subscribeCrosshairMove((param) => {
+    state.hoverTime = param && param.time != null ? param.time : null;
+    renderLegends();
+  });
+}
+attachCrosshair(chart);
+attachCrosshair(oscChart);
 
 function hasOscillator() {
   return state.indicators.some((i) => i.type === "rsi" || i.type === "macd");
@@ -211,10 +309,12 @@ function removeIndicator(id) {
   const idx = state.indicators.findIndex((i) => i.id === id);
   if (idx === -1) return;
   clearIndicatorPrimitives(state.indicators[idx]);
+  delete state.indicatorResults[id];
   state.indicators.splice(idx, 1);
   renderIndicatorList();
   toggleOscPane();
   saveState();
+  renderLegends();
 }
 
 function buildLineData(times, values) {
@@ -282,11 +382,16 @@ async function recomputeIndicators() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (token !== recomputeToken) return; // risultato obsoleto
+    state.indicatorResults = {};
     state.indicators.forEach((ind) => {
       const result = data.indicators[ind.id];
-      if (result) renderIndicator(ind, result);
+      if (result) {
+        renderIndicator(ind, result);
+        state.indicatorResults[ind.id] = result;
+      }
     });
     renderIndicatorList();
+    renderLegends();
   } catch (err) {
     statusEl.textContent = `Errore indicatori: ${err.message}`;
   }
@@ -302,9 +407,12 @@ async function loadCandles() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     state.candles = data;
+    state.timeIndex = new Map(data.map((c, i) => [c.time, i]));
+    state.hoverTime = null;
     candleSeries.setData(data);
     chart.timeScale().fitContent();
     statusEl.textContent = `${data.length} candele caricate.`;
+    renderLegends();
     await recomputeIndicators();
   } catch (err) {
     statusEl.textContent = `Errore: ${err.message}`;

@@ -54,8 +54,14 @@
     </aside>
 
     <section class="chart-wrap">
-      <div id="chart" class="pane main-pane"></div>
-      <div id="osc-chart" class="pane osc-pane hidden"></div>
+      <div class="pane-wrap main-pane">
+        <div id="chart"></div>
+        <div id="legend-main" class="legend"></div>
+      </div>
+      <div class="pane-wrap osc-pane hidden">
+        <div id="osc-chart"></div>
+        <div id="legend-osc" class="legend"></div>
+      </div>
     </section>
   </main>
 
