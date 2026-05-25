@@ -424,8 +424,49 @@ symbolEl.addEventListener("change", () => { saveState(); loadCandles(); });
 timeframeEl.addEventListener("change", () => { saveState(); loadCandles(); });
 addIndicatorEl.addEventListener("click", addIndicator);
 
-loadState();
-renderIndicatorList();
-toggleOscPane();
-resize();
-loadCandles();
+function savedSymbol() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const payload = JSON.parse(raw);
+    return typeof payload.symbol === "string" ? payload.symbol : null;
+  } catch (e) { return null; }
+}
+
+async function populateSymbols() {
+  try {
+    const res = await fetch("/api/symbols?limit=30");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const list = await res.json();
+    if (!Array.isArray(list) || list.length === 0) return;
+    symbolEl.innerHTML = "";
+    list.forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s.symbol;
+      opt.textContent = s.symbol;
+      symbolEl.appendChild(opt);
+    });
+    // Se il simbolo salvato non è nella top N, lo aggiungiamo come opzione
+    // extra così resta selezionabile (es. pair meno liquido scelto in passato).
+    const saved = savedSymbol();
+    if (saved && ![...symbolEl.options].some((o) => o.value === saved)) {
+      const opt = document.createElement("option");
+      opt.value = saved;
+      opt.textContent = `${saved} (salvato)`;
+      symbolEl.insertBefore(opt, symbolEl.firstChild);
+    }
+  } catch (err) {
+    statusEl.textContent = `Lista simboli non disponibile (${err.message}). Uso default.`;
+  }
+}
+
+async function init() {
+  await populateSymbols();
+  loadState();
+  renderIndicatorList();
+  toggleOscPane();
+  resize();
+  await loadCandles();
+}
+
+init();

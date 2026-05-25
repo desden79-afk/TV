@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from indicators import compute as compute_indicator
 
-from .market_data import Timeframe, fetch_ohlcv
+from .market_data import Timeframe, fetch_ohlcv, fetch_top_symbols
 
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
@@ -28,6 +28,17 @@ app.add_middleware(
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/symbols")
+def symbols(
+    quote: str = Query("USDT"),
+    limit: int = Query(30, ge=1, le=200),
+) -> list[dict]:
+    try:
+        return fetch_top_symbols(quote=quote, limit=limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Errore caricamento simboli: {exc}")
 
 
 @app.get("/api/candles")
