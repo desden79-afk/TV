@@ -48,6 +48,63 @@ const state = {
   nextId: 1,
 };
 
+const STORAGE_KEY = "tv-dashboard-state-v1";
+
+function saveState() {
+  try {
+    const payload = {
+      symbol: symbolEl.value,
+      timeframe: timeframeEl.value,
+      indicators: state.indicators.map((i) => ({
+        type: i.type,
+        params: { ...i.params },
+        color: i.color,
+      })),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    // localStorage può fallire (quota, modalità privata): non blocchiamo l'app
+  }
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    if (payload.symbol && [...symbolEl.options].some((o) => o.value === payload.symbol)) {
+      symbolEl.value = payload.symbol;
+    }
+    if (payload.timeframe && [...timeframeEl.options].some((o) => o.value === payload.timeframe)) {
+      timeframeEl.value = payload.timeframe;
+    }
+    if (Array.isArray(payload.indicators)) {
+      payload.indicators.forEach((saved) => {
+        const defaults = defaultParams(saved.type);
+        if (!defaults) return; // tipo non più supportato
+        const params = { ...defaults, ...(saved.params || {}) };
+        // tieni solo le chiavi che il tipo conosce, sanitizza interi
+        Object.keys(params).forEach((k) => {
+          if (!(k in defaults)) delete params[k];
+          else {
+            const v = parseInt(params[k], 10);
+            params[k] = Number.isFinite(v) && v > 0 ? v : defaults[k];
+          }
+        });
+        state.indicators.push({
+          id: `ind-${state.nextId++}`,
+          type: saved.type,
+          params,
+          color: saved.color || PALETTE[(state.nextId - 2) % PALETTE.length],
+          primitives: [],
+        });
+      });
+    }
+  } catch (e) {
+    // payload corrotto: ignora e riparti pulito
+  }
+}
+
 function resize() {
   const w = chartEl.clientWidth;
   chart.applyOptions({ width: w, height: chartEl.clientHeight });
@@ -112,6 +169,7 @@ function renderIndicatorList() {
         const v = parseInt(input.value, 10);
         if (!Number.isFinite(v) || v < 1) return;
         ind.params[key] = v;
+        saveState();
         recomputeIndicators();
       });
       wrap.appendChild(input);
@@ -145,6 +203,7 @@ function addIndicator() {
   state.indicators.push(ind);
   renderIndicatorList();
   toggleOscPane();
+  saveState();
   recomputeIndicators();
 }
 
@@ -155,6 +214,7 @@ function removeIndicator(id) {
   state.indicators.splice(idx, 1);
   renderIndicatorList();
   toggleOscPane();
+  saveState();
 }
 
 function buildLineData(times, values) {
@@ -252,9 +312,12 @@ async function loadCandles() {
 }
 
 reloadEl.addEventListener("click", loadCandles);
-symbolEl.addEventListener("change", loadCandles);
-timeframeEl.addEventListener("change", loadCandles);
+symbolEl.addEventListener("change", () => { saveState(); loadCandles(); });
+timeframeEl.addEventListener("change", () => { saveState(); loadCandles(); });
 addIndicatorEl.addEventListener("click", addIndicator);
 
+loadState();
+renderIndicatorList();
+toggleOscPane();
 resize();
 loadCandles();
