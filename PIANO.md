@@ -40,10 +40,16 @@ TradingView verrà usato solo per visualizzare i grafici (libreria gratuita
 - **Stato:** completata
 
 ### Fase 1 — Dashboard con indicatori personalizzabili
-- Grafico di un asset (es. BTC/USDT) ✓
-- Pannello per aggiungere/configurare indicatori
-- Aggiornamento live al variare dei parametri
-- **Stato:** in corso — scheletro web pronto, connessione exchange verificata
+- Grafico candlestick (TradingView Lightweight Charts) ✓
+- Lista simboli dinamica (top 30 USDT per volume 24h) ✓
+- Pannello indicatori: SMA, EMA, RSI, MACD configurabili, add/remove ✓
+- Overlay SMA/EMA sul pane candele, RSI/MACD su pane oscillator separato
+  con asse tempi sincronizzato ✓
+- Legenda con OHLCV e valori indicatori al passaggio del mouse ✓
+- Persistenza stato (simbolo, timeframe, indicatori, live) su localStorage ✓
+- Aggiornamento live con polling adattivo al timeframe, pausa quando la
+  tab non è visibile ✓
+- **Stato:** completata
 
 #### Nota sull'exchange usato per i dati
 Il container di sviluppo è geo-bloccato da `binance.com` (HTTP 451) e da
