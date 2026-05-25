@@ -71,6 +71,25 @@ const PRESETS = {
     long:  { entry: "cross_above(macd.macd, macd.signal)", exit: "cross_below(macd.macd, macd.signal)" },
     short: { entry: "cross_below(macd.macd, macd.signal)", exit: "cross_above(macd.macd, macd.signal)" },
   },
+  ema_short: {
+    name: "EMA death cross (short only)",
+    indicators: [
+      { id: "ema_fast", type: "ema", params: { period: 20 } },
+      { id: "ema_slow", type: "ema", params: { period: 50 } },
+    ],
+    short: { entry: "cross_below(ema_fast, ema_slow)", exit: "cross_above(ema_fast, ema_slow)" },
+    stop_loss_pct: 0.05,
+  },
+  rsi_short: {
+    name: "RSI overbought short",
+    indicators: [
+      { id: "rsi",     type: "rsi", params: { period: 14 } },
+      { id: "ema_slow", type: "ema", params: { period: 50 } },
+    ],
+    short: { entry: "rsi > 70 AND close < ema_slow", exit: "rsi < 40" },
+    stop_loss_pct: 0.03,
+    take_profit_pct: 0.06,
+  },
 };
 
 function loadBtStrategyFromPreset(key) {

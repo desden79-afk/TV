@@ -143,6 +143,42 @@ def test_end_of_data_force_closes_position():
     assert res["trades"][0]["exit_reason"] == "end_of_data"
 
 
+def test_short_stop_loss_triggers_intra_bar():
+    candles = [
+        candle(1, 100, 100, 100, 100),  # close=100 → entry short vero
+        candle(2, 100, 100, 100, 90),   # exec entry @ open=100; SL a 103. close=90 → no re-entry
+        candle(3, 100, 105, 95, 95),    # high=105 → SL=103 colpito
+        candle(4, 100, 100, 100, 100),
+    ]
+    strat = Strategy.from_dict({
+        "short": {"entry": "close >= 100", "exit": "close < 50"},
+        "stop_loss_pct": 0.03,
+    })
+    cfg = BacktestConfig(starting_capital=1000.0, fee_pct=0.0, slippage_pct=0.0)
+    res = run_backtest(candles, strat, cfg)
+    sl_trades = [t for t in res["trades"] if t["exit_reason"] == "stop_loss"]
+    assert len(sl_trades) == 1
+    assert sl_trades[0]["exit_price"] == 103.0
+
+
+def test_short_take_profit_triggers_intra_bar():
+    candles = [
+        candle(1, 100, 100, 100, 100),  # close=100 → entry short vero
+        candle(2, 100, 100, 100, 90),   # exec entry @ open=100; TP a 94. close=90 → no re-entry
+        candle(3, 100, 100, 92, 95),    # low=92 → TP=94 colpito
+        candle(4, 100, 100, 100, 100),
+    ]
+    strat = Strategy.from_dict({
+        "short": {"entry": "close >= 100", "exit": "close < 50"},
+        "take_profit_pct": 0.06,
+    })
+    cfg = BacktestConfig(starting_capital=1000.0, fee_pct=0.0, slippage_pct=0.0)
+    res = run_backtest(candles, strat, cfg)
+    tp_trades = [t for t in res["trades"] if t["exit_reason"] == "take_profit"]
+    assert len(tp_trades) == 1
+    assert tp_trades[0]["exit_price"] == 94.0
+
+
 def test_indicators_referenced_in_strategy():
     # Prezzi che salgono → SMA segue. Usa una SMA come filtro di trend.
     candles = [candle(i, 100+i, 100+i+1, 100+i-1, 100+i) for i in range(1, 30)]
