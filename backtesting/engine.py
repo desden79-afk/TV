@@ -28,6 +28,8 @@ from .dsl import compile_expr
 class Side:
     entry: str
     exit: str
+    stop_loss_pct: float | None = None
+    take_profit_pct: float | None = None
 
 
 @dataclass
@@ -160,13 +162,15 @@ def run_backtest(candles: list[dict], strategy: Strategy, config: BacktestConfig
         nonlocal cash, position
         eff = _apply_buy(ref_price, fee, slip)
         qty = cash / eff
+        sl_pct = strategy.long.stop_loss_pct if strategy.long and strategy.long.stop_loss_pct else strategy.stop_loss_pct
+        tp_pct = strategy.long.take_profit_pct if strategy.long and strategy.long.take_profit_pct else strategy.take_profit_pct
         position = {
             "direction": "long",
             "entry_idx": i,
             "entry_price": eff,
             "qty": qty,
-            "sl": ref_price * (1 - strategy.stop_loss_pct) if strategy.stop_loss_pct else None,
-            "tp": ref_price * (1 + strategy.take_profit_pct) if strategy.take_profit_pct else None,
+            "sl": ref_price * (1 - sl_pct) if sl_pct else None,
+            "tp": ref_price * (1 + tp_pct) if tp_pct else None,
         }
         cash = 0.0
 
@@ -174,13 +178,15 @@ def run_backtest(candles: list[dict], strategy: Strategy, config: BacktestConfig
         nonlocal cash, position
         eff = _apply_sell(ref_price, fee, slip)  # vendi short: incassi a prezzo netto
         qty = cash / eff
+        sl_pct = strategy.short.stop_loss_pct if strategy.short and strategy.short.stop_loss_pct else strategy.stop_loss_pct
+        tp_pct = strategy.short.take_profit_pct if strategy.short and strategy.short.take_profit_pct else strategy.take_profit_pct
         position = {
             "direction": "short",
             "entry_idx": i,
             "entry_price": eff,
             "qty": qty,
-            "sl": ref_price * (1 + strategy.stop_loss_pct) if strategy.stop_loss_pct else None,
-            "tp": ref_price * (1 - strategy.take_profit_pct) if strategy.take_profit_pct else None,
+            "sl": ref_price * (1 + sl_pct) if sl_pct else None,
+            "tp": ref_price * (1 - tp_pct) if tp_pct else None,
         }
         cash += qty * eff  # incassa il ricavo della vendita short
 

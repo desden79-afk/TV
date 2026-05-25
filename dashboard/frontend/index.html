@@ -103,11 +103,17 @@
         </label>
 
         <div class="risk-fields">
-          <label>Stop loss %
-            <input id="bt-sl" type="number" min="0" step="0.1" placeholder="off" />
+          <label>Stop loss % (Long)
+            <input id="bt-sl-long" type="number" min="0" step="0.1" placeholder="off" />
           </label>
-          <label>Take profit %
-            <input id="bt-tp" type="number" min="0" step="0.1" placeholder="off" />
+          <label>Take profit % (Long)
+            <input id="bt-tp-long" type="number" min="0" step="0.1" placeholder="off" />
+          </label>
+          <label>Stop loss % (Short)
+            <input id="bt-sl-short" type="number" min="0" step="0.1" placeholder="off" />
+          </label>
+          <label>Take profit % (Short)
+            <input id="bt-tp-short" type="number" min="0" step="0.1" placeholder="off" />
           </label>
         </div>
         <p class="hint">Lascia vuoto per disattivare. Valore in % sul prezzo di entry (es. 3 = 3%).</p>

@@ -31,8 +31,10 @@ const btLimitEl     = document.getElementById("bt-limit");
 const btCapitalEl   = document.getElementById("bt-capital");
 const btFeeEl       = document.getElementById("bt-fee");
 const btSlipEl      = document.getElementById("bt-slip");
-const btSlEl        = document.getElementById("bt-sl");
-const btTpEl        = document.getElementById("bt-tp");
+const btSlLongEl    = document.getElementById("bt-sl-long");
+const btTpLongEl    = document.getElementById("bt-tp-long");
+const btSlShortEl   = document.getElementById("bt-sl-short");
+const btTpShortEl   = document.getElementById("bt-tp-short");
 const btRunEl       = document.getElementById("bt-run");
 const btStatusEl    = document.getElementById("bt-status");
 const btMetricsEl   = document.getElementById("bt-metrics");
@@ -95,12 +97,44 @@ const PRESETS = {
 
 function loadBtStrategyFromPreset(key) {
   if (!key || !PRESETS[key]) return;
-  // Estrai SL/TP nei campi dedicati e rimuovili dal JSON visibile
   const preset = { ...PRESETS[key] };
-  btSlEl.value = preset.stop_loss_pct != null ? (preset.stop_loss_pct * 100) : "";
-  btTpEl.value = preset.take_profit_pct != null ? (preset.take_profit_pct * 100) : "";
-  delete preset.stop_loss_pct;
-  delete preset.take_profit_pct;
+
+  // Estrai SL/TP dai blocchi long/short, con fallback ai globali
+  let slLong = "", tpLong = "", slShort = "", tpShort = "";
+
+  if (preset.long?.stop_loss_pct != null) {
+    slLong = (preset.long.stop_loss_pct * 100).toString();
+    delete preset.long.stop_loss_pct;
+  }
+  if (preset.long?.take_profit_pct != null) {
+    tpLong = (preset.long.take_profit_pct * 100).toString();
+    delete preset.long.take_profit_pct;
+  }
+  if (preset.short?.stop_loss_pct != null) {
+    slShort = (preset.short.stop_loss_pct * 100).toString();
+    delete preset.short.stop_loss_pct;
+  }
+  if (preset.short?.take_profit_pct != null) {
+    tpShort = (preset.short.take_profit_pct * 100).toString();
+    delete preset.short.take_profit_pct;
+  }
+
+  // Fallback: se ci sono SL/TP globali, applica a entrambi
+  if (preset.stop_loss_pct != null) {
+    if (!slLong) slLong = (preset.stop_loss_pct * 100).toString();
+    if (!slShort) slShort = (preset.stop_loss_pct * 100).toString();
+    delete preset.stop_loss_pct;
+  }
+  if (preset.take_profit_pct != null) {
+    if (!tpLong) tpLong = (preset.take_profit_pct * 100).toString();
+    if (!tpShort) tpShort = (preset.take_profit_pct * 100).toString();
+    delete preset.take_profit_pct;
+  }
+
+  btSlLongEl.value = slLong;
+  btTpLongEl.value = tpLong;
+  btSlShortEl.value = slShort;
+  btTpShortEl.value = tpShort;
   btStrategyEl.value = JSON.stringify(preset, null, 2);
   saveBtState();
 }
@@ -168,8 +202,10 @@ function saveBtState() {
       capital: btCapitalEl.value,
       fee: btFeeEl.value,
       slip: btSlipEl.value,
-      sl: btSlEl.value,
-      tp: btTpEl.value,
+      sl_long: btSlLongEl.value,
+      tp_long: btTpLongEl.value,
+      sl_short: btSlShortEl.value,
+      tp_short: btTpShortEl.value,
     }));
   } catch (e) { /* ignora */ }
 }
@@ -186,8 +222,10 @@ function loadBtState() {
     if (p.capital) btCapitalEl.value = p.capital;
     if (p.fee) btFeeEl.value = p.fee;
     if (p.slip) btSlipEl.value = p.slip;
-    if (p.sl != null) btSlEl.value = p.sl;
-    if (p.tp != null) btTpEl.value = p.tp;
+    if (p.sl_long != null) btSlLongEl.value = p.sl_long;
+    if (p.tp_long != null) btTpLongEl.value = p.tp_long;
+    if (p.sl_short != null) btSlShortEl.value = p.sl_short;
+    if (p.tp_short != null) btTpShortEl.value = p.tp_short;
     // symbol viene applicato dopo populateBtSymbols
     return p;
   } catch (e) { return null; }
@@ -222,7 +260,7 @@ async function populateBtSymbols(preferredSymbol) {
   }
 }
 
-[btStrategyEl, btModeEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl, btSlEl, btTpEl]
+[btStrategyEl, btModeEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl, btSlLongEl, btTpLongEl, btSlShortEl, btTpShortEl]
   .forEach((el) => el.addEventListener("change", saveBtState));
 
 // ---- Run backtest ----
@@ -335,13 +373,31 @@ async function runBacktest() {
     return;
   }
 
-  // Override SL/TP dai campi dedicati: vuoto = disattivato.
-  const slRaw = btSlEl.value.trim();
-  const tpRaw = btTpEl.value.trim();
-  if (slRaw === "") delete strategy.stop_loss_pct;
-  else strategy.stop_loss_pct = (parseFloat(slRaw) || 0) / 100;
-  if (tpRaw === "") delete strategy.take_profit_pct;
-  else strategy.take_profit_pct = (parseFloat(tpRaw) || 0) / 100;
+  // Rimuovi SL/TP globali se presenti
+  delete strategy.stop_loss_pct;
+  delete strategy.take_profit_pct;
+
+  // Applica SL/TP specifici per long
+  if (strategy.long) {
+    if (!strategy.long) strategy.long = {};
+    const slRaw = btSlLongEl.value.trim();
+    const tpRaw = btTpLongEl.value.trim();
+    if (slRaw !== "") strategy.long.stop_loss_pct = (parseFloat(slRaw) || 0) / 100;
+    else delete strategy.long.stop_loss_pct;
+    if (tpRaw !== "") strategy.long.take_profit_pct = (parseFloat(tpRaw) || 0) / 100;
+    else delete strategy.long.take_profit_pct;
+  }
+
+  // Applica SL/TP specifici per short
+  if (strategy.short) {
+    if (!strategy.short) strategy.short = {};
+    const slRaw = btSlShortEl.value.trim();
+    const tpRaw = btTpShortEl.value.trim();
+    if (slRaw !== "") strategy.short.stop_loss_pct = (parseFloat(slRaw) || 0) / 100;
+    else delete strategy.short.stop_loss_pct;
+    if (tpRaw !== "") strategy.short.take_profit_pct = (parseFloat(tpRaw) || 0) / 100;
+    else delete strategy.short.take_profit_pct;
+  }
 
   ensureCharts();
   btResize();
@@ -389,21 +445,52 @@ btRunEl.addEventListener("click", runBacktest);
 // ---- Init ----
 
 function migrateStrategyJsonIntoFields() {
-  // Se il textarea ha ancora stop_loss_pct/take_profit_pct nel JSON (state
-  // salvato da versioni precedenti), spostali nei campi e ripulisci il JSON.
+  // Migra SL/TP dal JSON ai campi dedicati (per compatibility con state salvato)
   try {
     const obj = JSON.parse(btStrategyEl.value);
     let changed = false;
-    if (obj.stop_loss_pct != null && btSlEl.value === "") {
-      btSlEl.value = obj.stop_loss_pct * 100;
+    let didMigrate = false;
+
+    // Estrai SL/TP dai blocchi long/short
+    if (obj.long?.stop_loss_pct != null && btSlLongEl.value === "") {
+      btSlLongEl.value = obj.long.stop_loss_pct * 100;
+      delete obj.long.stop_loss_pct;
+      changed = true;
+      didMigrate = true;
+    }
+    if (obj.long?.take_profit_pct != null && btTpLongEl.value === "") {
+      btTpLongEl.value = obj.long.take_profit_pct * 100;
+      delete obj.long.take_profit_pct;
+      changed = true;
+      didMigrate = true;
+    }
+    if (obj.short?.stop_loss_pct != null && btSlShortEl.value === "") {
+      btSlShortEl.value = obj.short.stop_loss_pct * 100;
+      delete obj.short.stop_loss_pct;
+      changed = true;
+      didMigrate = true;
+    }
+    if (obj.short?.take_profit_pct != null && btTpShortEl.value === "") {
+      btTpShortEl.value = obj.short.take_profit_pct * 100;
+      delete obj.short.take_profit_pct;
+      changed = true;
+      didMigrate = true;
+    }
+
+    // Fallback: SL/TP globali → applica a entrambi
+    if (obj.stop_loss_pct != null && !didMigrate) {
+      if (btSlLongEl.value === "") btSlLongEl.value = obj.stop_loss_pct * 100;
+      if (btSlShortEl.value === "") btSlShortEl.value = obj.stop_loss_pct * 100;
       delete obj.stop_loss_pct;
       changed = true;
     }
-    if (obj.take_profit_pct != null && btTpEl.value === "") {
-      btTpEl.value = obj.take_profit_pct * 100;
+    if (obj.take_profit_pct != null && !didMigrate) {
+      if (btTpLongEl.value === "") btTpLongEl.value = obj.take_profit_pct * 100;
+      if (btTpShortEl.value === "") btTpShortEl.value = obj.take_profit_pct * 100;
       delete obj.take_profit_pct;
       changed = true;
     }
+
     if (changed) btStrategyEl.value = JSON.stringify(obj, null, 2);
   } catch (e) { /* JSON non parsabile: ignora */ }
 }
