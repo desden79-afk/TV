@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from backtesting import BacktestConfig, Strategy, run_backtest
 from indicators import compute as compute_indicator
 
 from .market_data import Timeframe, fetch_ohlcv, fetch_top_symbols
@@ -76,6 +77,44 @@ def indicators(req: IndicatorsRequest) -> dict[str, Any]:
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Errore indicatore {spec.id}: {exc}")
     return {"indicators": results}
+
+
+class BacktestRequest(BaseModel):
+    symbol: str = "BTC/USDT"
+    timeframe: Timeframe = "1h"
+    limit: int = Field(500, ge=10, le=1000)
+    strategy: dict[str, Any]
+    starting_capital: float = 10_000.0
+    fee_pct: float = 0.001
+    slippage_pct: float = 0.0005
+
+
+@app.post("/api/backtest")
+def backtest(req: BacktestRequest) -> dict[str, Any]:
+    try:
+        candles = fetch_ohlcv(symbol=req.symbol, timeframe=req.timeframe, limit=req.limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Errore caricamento dati: {exc}")
+    try:
+        strategy = Strategy.from_dict(req.strategy)
+        config = BacktestConfig(
+            starting_capital=req.starting_capital,
+            fee_pct=req.fee_pct,
+            slippage_pct=req.slippage_pct,
+        )
+        result = run_backtest(
+            [c.__dict__ for c in candles],
+            strategy,
+            config,
+        )
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=400, detail=f"Strategia non valida: {exc}")
+    return {
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "candles": [c.__dict__ for c in candles],
+        **result,
+    }
 
 
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
