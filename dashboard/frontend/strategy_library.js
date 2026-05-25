@@ -69,4 +69,26 @@
   });
 
   window.strategyLibrary = { list, get, save, remove, subscribe };
+
+  // Helper condiviso: estrae un messaggio leggibile da una risposta di errore
+  // FastAPI/Pydantic. `detail` può essere una stringa o un array di validation
+  // error (Pydantic v2): [{loc, msg, type}, ...].
+  function formatApiError(payload, status) {
+    if (!payload || typeof payload !== "object") return `HTTP ${status}`;
+    const d = payload.detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) {
+      return d.map((e) => {
+        if (!e || typeof e !== "object") return String(e);
+        const loc = Array.isArray(e.loc) ? e.loc.filter((p) => p !== "body").join(".") : "";
+        const msg = e.msg || e.type || "errore di validazione";
+        return loc ? `${loc}: ${msg}` : msg;
+      }).join(" | ");
+    }
+    if (d && typeof d === "object") {
+      try { return JSON.stringify(d); } catch (e) { return `HTTP ${status}`; }
+    }
+    return `HTTP ${status}`;
+  }
+  window.formatApiError = formatApiError;
 })();

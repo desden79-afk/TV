@@ -558,8 +558,8 @@ async function runBacktest() {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-      throw new Error(err.detail || `HTTP ${res.status}`);
+      const err = await res.json().catch(() => ({}));
+      throw new Error(window.formatApiError(err, res.status));
     }
     const data = await res.json();
     renderMetrics(data.metrics);
