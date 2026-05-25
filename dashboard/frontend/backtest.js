@@ -141,7 +141,117 @@ function loadBtStrategyFromPreset(key) {
   saveBtState();
 }
 
-btPresetEl.addEventListener("change", () => loadBtStrategyFromPreset(btPresetEl.value));
+const btSaveStrategyEl = document.getElementById("bt-save-strategy");
+const btDeleteStrategyEl = document.getElementById("bt-delete-strategy");
+const btPresetSavedGroup = document.getElementById("bt-preset-saved");
+
+function loadBtStrategyFromSaved(name) {
+  const strat = window.strategyLibrary && window.strategyLibrary.get(name);
+  if (!strat) return;
+  // Estrai SL/TP nei campi dedicati come fa loadBtStrategyFromPreset.
+  const preset = JSON.parse(JSON.stringify(strat));
+  let slLong = "", tpLong = "", slShort = "", tpShort = "";
+  if (preset.long?.stop_loss_pct != null) { slLong = (preset.long.stop_loss_pct * 100).toString(); delete preset.long.stop_loss_pct; }
+  if (preset.long?.take_profit_pct != null) { tpLong = (preset.long.take_profit_pct * 100).toString(); delete preset.long.take_profit_pct; }
+  if (preset.short?.stop_loss_pct != null) { slShort = (preset.short.stop_loss_pct * 100).toString(); delete preset.short.stop_loss_pct; }
+  if (preset.short?.take_profit_pct != null) { tpShort = (preset.short.take_profit_pct * 100).toString(); delete preset.short.take_profit_pct; }
+  if (preset.stop_loss_pct != null) {
+    if (!slLong) slLong = (preset.stop_loss_pct * 100).toString();
+    if (!slShort) slShort = (preset.stop_loss_pct * 100).toString();
+    delete preset.stop_loss_pct;
+  }
+  if (preset.take_profit_pct != null) {
+    if (!tpLong) tpLong = (preset.take_profit_pct * 100).toString();
+    if (!tpShort) tpShort = (preset.take_profit_pct * 100).toString();
+    delete preset.take_profit_pct;
+  }
+  btSlLongEl.value = slLong;
+  btTpLongEl.value = tpLong;
+  btSlShortEl.value = slShort;
+  btTpShortEl.value = tpShort;
+  btStrategyEl.value = JSON.stringify(preset, null, 2);
+  saveBtState();
+}
+
+function refreshBtSavedList() {
+  if (!window.strategyLibrary) return;
+  const names = window.strategyLibrary.list();
+  btPresetSavedGroup.innerHTML = "";
+  names.forEach((n) => {
+    const opt = document.createElement("option");
+    opt.value = `saved:${n}`;
+    opt.textContent = n;
+    btPresetSavedGroup.appendChild(opt);
+  });
+  // attiva/disattiva il bottone elimina in base alla selezione corrente
+  btDeleteStrategyEl.disabled = !btPresetEl.value.startsWith("saved:");
+}
+
+btPresetEl.addEventListener("change", () => {
+  const v = btPresetEl.value;
+  if (v.startsWith("saved:")) {
+    loadBtStrategyFromSaved(v.slice("saved:".length));
+  } else if (v) {
+    loadBtStrategyFromPreset(v);
+  }
+  btDeleteStrategyEl.disabled = !v.startsWith("saved:");
+});
+
+btSaveStrategyEl.addEventListener("click", () => {
+  let parsed;
+  try {
+    parsed = JSON.parse(btStrategyEl.value || "{}");
+  } catch (e) {
+    btStatusEl.textContent = `JSON non valido: ${e.message}`;
+    return;
+  }
+  // applica SL/TP correnti come fa runBacktest, così la versione salvata
+  // riflette esattamente quello che si vede in UI
+  if (parsed.long) {
+    const sl = btSlLongEl.value.trim(), tp = btTpLongEl.value.trim();
+    if (sl !== "") parsed.long.stop_loss_pct = (parseFloat(sl) || 0) / 100; else delete parsed.long.stop_loss_pct;
+    if (tp !== "") parsed.long.take_profit_pct = (parseFloat(tp) || 0) / 100; else delete parsed.long.take_profit_pct;
+  }
+  if (parsed.short) {
+    const sl = btSlShortEl.value.trim(), tp = btTpShortEl.value.trim();
+    if (sl !== "") parsed.short.stop_loss_pct = (parseFloat(sl) || 0) / 100; else delete parsed.short.stop_loss_pct;
+    if (tp !== "") parsed.short.take_profit_pct = (parseFloat(tp) || 0) / 100; else delete parsed.short.take_profit_pct;
+  }
+  const existing = btPresetEl.value.startsWith("saved:") ? btPresetEl.value.slice(6) : "";
+  const name = prompt("Nome della strategia da salvare:", existing || "Strategia personalizzata");
+  if (name == null) return;
+  const trimmed = name.trim();
+  if (!trimmed) {
+    btStatusEl.textContent = "Nome strategia vuoto.";
+    return;
+  }
+  if (window.strategyLibrary.get(trimmed) && !confirm(`"${trimmed}" esiste già. Sovrascrivere?`)) return;
+  try {
+    window.strategyLibrary.save(trimmed, parsed);
+    refreshBtSavedList();
+    btPresetEl.value = `saved:${trimmed}`;
+    btDeleteStrategyEl.disabled = false;
+    btStatusEl.textContent = `Salvata: ${trimmed}`;
+  } catch (e) {
+    btStatusEl.textContent = `Errore salvataggio: ${e.message}`;
+  }
+});
+
+btDeleteStrategyEl.addEventListener("click", () => {
+  if (!btPresetEl.value.startsWith("saved:")) return;
+  const name = btPresetEl.value.slice("saved:".length);
+  if (!confirm(`Eliminare "${name}" dalla libreria?`)) return;
+  window.strategyLibrary.remove(name);
+  refreshBtSavedList();
+  btPresetEl.value = "";
+  btDeleteStrategyEl.disabled = true;
+  btStatusEl.textContent = `Eliminata: ${name}`;
+});
+
+if (window.strategyLibrary) {
+  window.strategyLibrary.subscribe(refreshBtSavedList);
+}
+refreshBtSavedList();
 
 // ---- Charts (lazy) ----
 
@@ -287,6 +397,8 @@ function renderMetrics(m) {
     { label: "Max drawdown", value: fmtPct(m.max_drawdown_pct), cls: "metric-down" },
     { label: "Avg win", value: fmtPct(m.avg_win_pct), cls: "metric-up" },
     { label: "Avg loss", value: fmtPct(m.avg_loss_pct), cls: "metric-down" },
+    { label: "Sharpe", value: m.sharpe == null ? "—" : m.sharpe.toFixed(2), cls: (m.sharpe ?? 0) >= 0 ? "metric-up" : "metric-down" },
+    { label: "Sortino", value: m.sortino == null ? "—" : m.sortino.toFixed(2), cls: (m.sortino ?? 0) >= 0 ? "metric-up" : "metric-down" },
   ];
   btMetricsEl.innerHTML = cards.map((c) =>
     `<div class="metric-card">

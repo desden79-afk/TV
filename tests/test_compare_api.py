@@ -73,3 +73,23 @@ def test_compare_validates_strategy_count():
     client = TestClient(app)
     r = client.post("/api/backtest/compare", json={"strategies": []})
     assert r.status_code == 422
+
+
+def test_compare_returns_equity_curve_and_risk_metrics():
+    with patch("dashboard.backend.main.fetch_ohlcv", return_value=_fake_candles(120)):
+        client = TestClient(app)
+        r = client.post("/api/backtest/compare", json={
+            "symbol": "BTC/USDT", "timeframe": "1h", "limit": 120,
+            "strategies": [
+                {"name": "buy_all", "strategy": {
+                    "long": {"entry": "close > 0", "exit": "close < 0"},
+                }},
+            ],
+        })
+    assert r.status_code == 200
+    res = r.json()["results"][0]
+    assert isinstance(res["equity_curve"], list)
+    assert len(res["equity_curve"]) > 0
+    # Sharpe/Sortino devono essere presenti (possono essere None se la varianza è 0)
+    assert "sharpe" in res["metrics"]
+    assert "sortino" in res["metrics"]

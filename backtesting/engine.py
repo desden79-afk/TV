@@ -60,6 +60,10 @@ class BacktestConfig:
     starting_capital: float = 10_000.0
     fee_pct: float = 0.001       # 0.10% per lato
     slippage_pct: float = 0.0005  # 0.05% per lato
+    # Numero di barre in un anno: usato per annualizzare Sharpe/Sortino.
+    # Default 8760 = candele orarie (24*365). Le rotte API lo derivano dal
+    # timeframe della richiesta.
+    bars_per_year: float = 8760.0
 
 
 @dataclass
@@ -260,7 +264,7 @@ def run_backtest(candles: list[dict], strategy: Strategy, config: BacktestConfig
         if equity_curve:
             equity_curve[-1] = {"time": equity_curve[-1]["time"], "equity": cash}
 
-    metrics = compute_metrics(equity_curve, trades, config.starting_capital)
+    metrics = compute_metrics(equity_curve, trades, config.starting_capital, config.bars_per_year)
     return {
         "metrics": metrics,
         "equity_curve": equity_curve,
@@ -270,7 +274,12 @@ def run_backtest(candles: list[dict], strategy: Strategy, config: BacktestConfig
 
 # ---------- Metrics ----------
 
-def compute_metrics(equity_curve: list[dict], trades: list[Trade], starting_capital: float) -> dict[str, Any]:
+def compute_metrics(
+    equity_curve: list[dict],
+    trades: list[Trade],
+    starting_capital: float,
+    bars_per_year: float = 8760.0,
+) -> dict[str, Any]:
     if not equity_curve:
         return {
             "starting_capital": starting_capital,
@@ -282,6 +291,8 @@ def compute_metrics(equity_curve: list[dict], trades: list[Trade], starting_capi
             "max_drawdown_pct": 0.0,
             "avg_win_pct": 0.0,
             "avg_loss_pct": 0.0,
+            "sharpe": None,
+            "sortino": None,
         }
     eq = np.array([p["equity"] for p in equity_curve], dtype=float)
     final = float(eq[-1])
@@ -291,6 +302,26 @@ def compute_metrics(equity_curve: list[dict], trades: list[Trade], starting_capi
     running_max = np.maximum.accumulate(eq)
     drawdowns = (eq - running_max) / running_max
     max_dd = float(drawdowns.min()) if len(drawdowns) else 0.0
+
+    # Sharpe / Sortino sui rendimenti per-barra dell'equity curve.
+    # Annualizzati con sqrt(bars_per_year). Risk-free assunto = 0.
+    sharpe: float | None = None
+    sortino: float | None = None
+    if len(eq) >= 2:
+        # Considera solo equity positivo per evitare log/divisioni problematiche
+        rets = np.diff(eq) / eq[:-1]
+        # rimuovi NaN/inf dovuti a equity = 0 (caso limite)
+        rets = rets[np.isfinite(rets)]
+        if len(rets) >= 2:
+            mean = float(rets.mean())
+            std = float(rets.std(ddof=1))
+            if std > 0:
+                sharpe = mean / std * float(np.sqrt(bars_per_year))
+            downside = rets[rets < 0]
+            if len(downside) >= 2:
+                dstd = float(downside.std(ddof=1))
+                if dstd > 0:
+                    sortino = mean / dstd * float(np.sqrt(bars_per_year))
 
     wins = [t for t in trades if t.pnl > 0]
     losses = [t for t in trades if t.pnl <= 0]
@@ -310,4 +341,6 @@ def compute_metrics(equity_curve: list[dict], trades: list[Trade], starting_capi
         "max_drawdown_pct": max_dd,  # negativo
         "avg_win_pct": (sum(t.return_pct for t in wins) / len(wins)) if wins else 0.0,
         "avg_loss_pct": (sum(t.return_pct for t in losses) / len(losses)) if losses else 0.0,
+        "sharpe": sharpe,
+        "sortino": sortino,
     }

@@ -87,13 +87,20 @@
           Preset
           <select id="bt-preset">
             <option value="">— scegli un preset —</option>
-            <option value="rsi_rebound">RSI rebound + EMA filter</option>
-            <option value="golden_cross">EMA golden cross</option>
-            <option value="macd_signal">MACD signal cross</option>
-            <option value="ema_short">EMA death cross (short)</option>
-            <option value="rsi_short">RSI overbought short</option>
+            <optgroup label="Preset" id="bt-preset-builtin">
+              <option value="rsi_rebound">RSI rebound + EMA filter</option>
+              <option value="golden_cross">EMA golden cross</option>
+              <option value="macd_signal">MACD signal cross</option>
+              <option value="ema_short">EMA death cross (short)</option>
+              <option value="rsi_short">RSI overbought short</option>
+            </optgroup>
+            <optgroup label="Le mie strategie" id="bt-preset-saved"></optgroup>
           </select>
         </label>
+        <div class="library-controls">
+          <button id="bt-save-strategy" class="btn-secondary">Salva come…</button>
+          <button id="bt-delete-strategy" class="btn-secondary" disabled>Elimina selezionata</button>
+        </div>
         <label>
           Modalità operativa
           <select id="bt-mode">
@@ -221,11 +228,19 @@
         <h3>Risultati</h3>
         <div id="cmp-results"></div>
       </div>
+      <div id="cmp-equity-wrap" class="cmp-equity-wrap hidden">
+        <div class="cmp-equity-head">
+          <h3>Equity curve sovrapposte</h3>
+          <div id="cmp-equity-legend" class="cmp-equity-legend-flex"></div>
+        </div>
+        <div id="cmp-equity-chart" class="cmp-equity-chart"></div>
+      </div>
     </section>
   </div>
   </main>
 
   <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="/strategy_library.js"></script>
   <script src="/app.js"></script>
   <script src="/backtest.js"></script>
   <script src="/compare.js"></script>

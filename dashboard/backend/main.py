@@ -16,6 +16,21 @@ from .market_data import Timeframe, fetch_ohlcv, fetch_top_symbols
 
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
+# Minuti per barra di ogni timeframe supportato → usato per annualizzare
+# Sharpe/Sortino (bars_per_year = minuti_anno / minuti_barra).
+_TF_MINUTES: dict[str, int] = {
+    "15m": 15,
+    "1h":  60,
+    "4h":  240,
+    "1d":  1440,
+}
+_MINUTES_PER_YEAR = 365 * 24 * 60
+
+
+def _bars_per_year(timeframe: str) -> float:
+    m = _TF_MINUTES.get(timeframe, 60)
+    return _MINUTES_PER_YEAR / m
+
 app = FastAPI(title="TV Dashboard", version="0.1.0")
 
 app.add_middleware(
@@ -103,6 +118,7 @@ def backtest(req: BacktestRequest) -> dict[str, Any]:
             starting_capital=req.starting_capital,
             fee_pct=req.fee_pct,
             slippage_pct=req.slippage_pct,
+            bars_per_year=_bars_per_year(req.timeframe),
         )
         result = run_backtest(
             [c.__dict__ for c in candles],
@@ -146,6 +162,7 @@ def backtest_compare(req: CompareRequest) -> dict[str, Any]:
         starting_capital=req.starting_capital,
         fee_pct=req.fee_pct,
         slippage_pct=req.slippage_pct,
+        bars_per_year=_bars_per_year(req.timeframe),
     )
 
     results: list[dict[str, Any]] = []
@@ -156,6 +173,7 @@ def backtest_compare(req: CompareRequest) -> dict[str, Any]:
             outcome = run_backtest(candle_dicts, strategy, config)
             entry["metrics"] = outcome["metrics"]
             entry["num_trades"] = len(outcome["trades"])
+            entry["equity_curve"] = outcome["equity_curve"]
         except (ValueError, KeyError) as exc:
             entry["error"] = f"Strategia non valida: {exc}"
         except Exception as exc:

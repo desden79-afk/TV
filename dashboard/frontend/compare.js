@@ -17,9 +17,71 @@ const cmpSlotsEl     = document.getElementById("cmp-slots");
 const cmpResultsWrapEl = document.getElementById("cmp-results-wrap");
 const cmpResultsEl   = document.getElementById("cmp-results");
 
+const cmpEquityWrapEl = document.getElementById("cmp-equity-wrap");
+const cmpEquityLegendEl = document.getElementById("cmp-equity-legend");
+const cmpEquityChartEl = document.getElementById("cmp-equity-chart");
+
 const CMP_STORAGE_KEY = "tv-compare-state-v1";
 const CMP_MAX_SLOTS = 6;
 const CMP_MIN_SLOTS = 2;
+
+// Palette di colori distinti per le equity curve (riusata anche dalla tabella header)
+const CMP_PALETTE = ["#4ea1ff", "#26a69a", "#ffb74d", "#ba68c8", "#ef5350", "#9ccc65"];
+
+// Preset built-in disponibili anche nel tab Confronto (chiave → { name, strategy })
+const CMP_BUILTIN_PRESETS = {
+  rsi_rebound: {
+    name: "RSI rebound + EMA filter",
+    strategy: {
+      indicators: [
+        { id: "rsi", type: "rsi", params: { period: 14 } },
+        { id: "ema_fast", type: "ema", params: { period: 20 } },
+        { id: "ema_slow", type: "ema", params: { period: 50 } },
+      ],
+      long: { entry: "rsi < 30 AND ema_fast > ema_slow", exit: "rsi > 70", stop_loss_pct: 0.03, take_profit_pct: 0.06 },
+    },
+  },
+  golden_cross: {
+    name: "EMA golden cross",
+    strategy: {
+      indicators: [
+        { id: "ema_fast", type: "ema", params: { period: 20 } },
+        { id: "ema_slow", type: "ema", params: { period: 50 } },
+      ],
+      long: { entry: "cross_above(ema_fast, ema_slow)", exit: "cross_below(ema_fast, ema_slow)", stop_loss_pct: 0.05 },
+    },
+  },
+  macd_signal: {
+    name: "MACD signal cross",
+    strategy: {
+      indicators: [
+        { id: "macd", type: "macd", params: { fast: 12, slow: 26, signal: 9 } },
+      ],
+      long: { entry: "cross_above(macd.macd, macd.signal)", exit: "cross_below(macd.macd, macd.signal)" },
+      short: { entry: "cross_below(macd.macd, macd.signal)", exit: "cross_above(macd.macd, macd.signal)" },
+    },
+  },
+  ema_short: {
+    name: "EMA death cross (short)",
+    strategy: {
+      indicators: [
+        { id: "ema_fast", type: "ema", params: { period: 20 } },
+        { id: "ema_slow", type: "ema", params: { period: 50 } },
+      ],
+      short: { entry: "cross_below(ema_fast, ema_slow)", exit: "cross_above(ema_fast, ema_slow)", stop_loss_pct: 0.05 },
+    },
+  },
+  rsi_short: {
+    name: "RSI overbought short",
+    strategy: {
+      indicators: [
+        { id: "rsi", type: "rsi", params: { period: 14 } },
+        { id: "ema_slow", type: "ema", params: { period: 50 } },
+      ],
+      short: { entry: "rsi > 70 AND close < ema_slow", exit: "rsi < 40", stop_loss_pct: 0.03, take_profit_pct: 0.06 },
+    },
+  },
+};
 
 const CMP_DEFAULT_SLOTS = [
   {
@@ -91,15 +153,41 @@ function cmpLoadState() {
 
 // ---- rendering slot ----
 
+function cmpBuildLoadOptions() {
+  const options = ['<option value="">— carica da… —</option>'];
+  // Preset built-in
+  const presetEntries = Object.entries(CMP_BUILTIN_PRESETS);
+  if (presetEntries.length) {
+    options.push('<optgroup label="Preset">');
+    presetEntries.forEach(([k, v]) => {
+      options.push(`<option value="preset:${k}">${escapeHtml(v.name)}</option>`);
+    });
+    options.push("</optgroup>");
+  }
+  // Strategie salvate
+  const saved = window.strategyLibrary ? window.strategyLibrary.list() : [];
+  if (saved.length) {
+    options.push('<optgroup label="Le mie strategie">');
+    saved.forEach((name) => {
+      options.push(`<option value="saved:${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+    });
+    options.push("</optgroup>");
+  }
+  return options.join("");
+}
+
 function cmpRenderSlots() {
   cmpSlotsEl.innerHTML = "";
   cmpState.slots.forEach((slot, idx) => {
+    const color = CMP_PALETTE[idx % CMP_PALETTE.length];
     const card = document.createElement("div");
     card.className = "cmp-slot";
     card.innerHTML = `
       <div class="cmp-slot-head">
-        <span class="cmp-slot-num">#${idx + 1}</span>
+        <span class="cmp-slot-num" style="border-left:3px solid ${color}">#${idx + 1}</span>
         <input class="cmp-slot-name" type="text" value="" placeholder="Nome strategia" />
+        <select class="cmp-slot-load">${cmpBuildLoadOptions()}</select>
+        <button class="cmp-slot-save btn-secondary" title="Salva nella libreria">💾</button>
         <button class="btn-remove cmp-slot-remove" title="Rimuovi slot">×</button>
       </div>
       <textarea class="cmp-slot-json" rows="10" spellcheck="false"></textarea>
@@ -107,6 +195,8 @@ function cmpRenderSlots() {
     const nameInput = card.querySelector(".cmp-slot-name");
     const jsonArea = card.querySelector(".cmp-slot-json");
     const removeBtn = card.querySelector(".cmp-slot-remove");
+    const loadSel = card.querySelector(".cmp-slot-load");
+    const saveBtn = card.querySelector(".cmp-slot-save");
 
     nameInput.value = slot.name;
     jsonArea.value = slot.json;
@@ -128,10 +218,61 @@ function cmpRenderSlots() {
       cmpSaveState();
       cmpRenderSlots();
     });
+    loadSel.addEventListener("change", () => {
+      const v = loadSel.value;
+      if (!v) return;
+      let strategy = null;
+      let suggestedName = "";
+      if (v.startsWith("preset:")) {
+        const p = CMP_BUILTIN_PRESETS[v.slice(7)];
+        if (p) { strategy = p.strategy; suggestedName = p.name; }
+      } else if (v.startsWith("saved:")) {
+        const name = v.slice(6);
+        strategy = window.strategyLibrary ? window.strategyLibrary.get(name) : null;
+        suggestedName = name;
+      }
+      if (!strategy) return;
+      slot.json = JSON.stringify(strategy, null, 2);
+      if (!slot.name || /^Strategia \d+$/.test(slot.name)) slot.name = suggestedName;
+      cmpSaveState();
+      cmpRenderSlots();
+    });
+    saveBtn.addEventListener("click", () => {
+      if (!window.strategyLibrary) return;
+      let parsed;
+      try { parsed = JSON.parse(slot.json || "{}"); }
+      catch (e) { cmpStatusEl.textContent = `Slot #${idx + 1}: JSON non valido — ${e.message}`; return; }
+      const name = prompt("Nome con cui salvare nella libreria:", slot.name || `Strategia ${idx + 1}`);
+      if (name == null) return;
+      const trimmed = name.trim();
+      if (!trimmed) { cmpStatusEl.textContent = "Nome strategia vuoto."; return; }
+      if (window.strategyLibrary.get(trimmed) && !confirm(`"${trimmed}" esiste già. Sovrascrivere?`)) return;
+      try {
+        window.strategyLibrary.save(trimmed, parsed);
+        cmpStatusEl.textContent = `Salvata in libreria: ${trimmed}`;
+        slot.name = trimmed;
+        cmpSaveState();
+        cmpRenderSlots();
+      } catch (e) {
+        cmpStatusEl.textContent = `Errore salvataggio: ${e.message}`;
+      }
+    });
 
     cmpSlotsEl.appendChild(card);
   });
   cmpAddSlotEl.disabled = cmpState.slots.length >= CMP_MAX_SLOTS;
+}
+
+// Aggiornamento "live" della libreria nei dropdown già renderizzati
+if (window.strategyLibrary) {
+  window.strategyLibrary.subscribe(() => {
+    // re-render minimal: solo i select "carica" senza perdere l'input utente
+    cmpSlotsEl.querySelectorAll(".cmp-slot-load").forEach((sel) => {
+      const current = sel.value;
+      sel.innerHTML = cmpBuildLoadOptions();
+      sel.value = current;
+    });
+  });
 }
 
 function cmpAddSlot() {
@@ -207,6 +348,8 @@ const CMP_METRICS = [
   { key: "win_rate",         label: "Win rate", fmt: (v) => cmpFmtPct(v, 1), best: "max" },
   { key: "profit_factor",    label: "Profit factor", fmt: (v) => v == null ? "∞" : cmpFmtNum(v), best: "max" },
   { key: "max_drawdown_pct", label: "Max drawdown", fmt: cmpFmtPct, best: "max" }, // dd è negativo: max è il meno peggio
+  { key: "sharpe",           label: "Sharpe", fmt: (v) => v == null ? "—" : cmpFmtNum(v), best: "max" },
+  { key: "sortino",          label: "Sortino", fmt: (v) => v == null ? "—" : cmpFmtNum(v), best: "max" },
   { key: "avg_win_pct",      label: "Avg win", fmt: cmpFmtPct, best: "max" },
   { key: "avg_loss_pct",     label: "Avg loss", fmt: cmpFmtPct, best: "max" }, // loss è negativo: max = meno peggio
 ];
@@ -226,11 +369,14 @@ function cmpBestIndex(values, mode) {
 }
 
 function cmpRenderResults(results) {
-  // results: [{ name, metrics?, num_trades?, error? }]
+  // results: [{ name, metrics?, num_trades?, equity_curve?, error? }]
   cmpResultsWrapEl.classList.remove("hidden");
 
   const headerCells = ["<th>Metrica</th>"].concat(
-    results.map((r, i) => `<th class="cmp-col-head">#${i + 1} ${escapeHtml(r.name || "—")}</th>`)
+    results.map((r, i) => {
+      const color = CMP_PALETTE[i % CMP_PALETTE.length];
+      return `<th class="cmp-col-head" style="border-bottom:2px solid ${color}">#${i + 1} ${escapeHtml(r.name || "—")}</th>`;
+    })
   ).join("");
 
   const errorRow = results.some((r) => r.error)
@@ -256,6 +402,76 @@ function cmpRenderResults(results) {
       <tbody>${errorRow}${metricRows}</tbody>
     </table>
   `;
+}
+
+// ---- Equity curves overlay ----
+
+let cmpEquityChart = null;
+const cmpEquitySeries = []; // [{ name, color, series }]
+
+function cmpEnsureEquityChart() {
+  if (cmpEquityChart) return cmpEquityChart;
+  if (typeof LightweightCharts === "undefined") return null;
+  cmpEquityChart = LightweightCharts.createChart(cmpEquityChartEl, {
+    layout: { background: { color: "#161b25" }, textColor: "#e6e9ef" },
+    grid: { vertLines: { color: "#232a38" }, horzLines: { color: "#232a38" } },
+    timeScale: { timeVisible: true, secondsVisible: false },
+    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+  });
+  const ro = new ResizeObserver(() => cmpEquityChart.applyOptions({
+    width: cmpEquityChartEl.clientWidth, height: cmpEquityChartEl.clientHeight,
+  }));
+  ro.observe(cmpEquityChartEl);
+  return cmpEquityChart;
+}
+
+function cmpClearEquitySeries() {
+  if (!cmpEquityChart) return;
+  cmpEquitySeries.forEach(({ series }) => {
+    try { cmpEquityChart.removeSeries(series); } catch (e) { /* già rimossa */ }
+  });
+  cmpEquitySeries.length = 0;
+}
+
+function cmpRenderEquityOverlay(results) {
+  // Almeno una strategia con equity_curve non vuota → mostra chart e legenda
+  const drawable = results
+    .map((r, i) => ({ ...r, idx: i }))
+    .filter((r) => Array.isArray(r.equity_curve) && r.equity_curve.length > 0);
+  if (drawable.length === 0) {
+    cmpEquityWrapEl.classList.add("hidden");
+    return;
+  }
+  cmpEquityWrapEl.classList.remove("hidden");
+  const chart = cmpEnsureEquityChart();
+  if (!chart) {
+    // LightweightCharts non caricato (es. CDN bloccato): nascondi il pane
+    cmpEquityWrapEl.classList.add("hidden");
+    return;
+  }
+  cmpClearEquitySeries();
+
+  drawable.forEach((r) => {
+    const color = CMP_PALETTE[r.idx % CMP_PALETTE.length];
+    const series = chart.addLineSeries({
+      color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
+    });
+    series.setData(r.equity_curve.map((p) => ({ time: p.time, value: p.equity })));
+    cmpEquitySeries.push({ name: r.name, color, series });
+  });
+  chart.timeScale().fitContent();
+
+  cmpEquityLegendEl.innerHTML = drawable.map((r) => {
+    const color = CMP_PALETTE[r.idx % CMP_PALETTE.length];
+    return `<span class="cmp-equity-legend-item">
+      <span class="cmp-equity-dot" style="background:${color}"></span>
+      ${escapeHtml(r.name || `#${r.idx + 1}`)}
+    </span>`;
+  }).join("");
+
+  requestAnimationFrame(() => chart.applyOptions({
+    width: cmpEquityChartEl.clientWidth, height: cmpEquityChartEl.clientHeight,
+  }));
 }
 
 function escapeHtml(s) {
@@ -309,6 +525,7 @@ async function cmpRun() {
     }
     const data = await res.json();
     cmpRenderResults(data.results);
+    cmpRenderEquityOverlay(data.results);
     const okCount = data.results.filter((r) => !r.error).length;
     cmpStatusEl.textContent = `Completato: ${okCount}/${data.results.length} ok su ${data.candles_count} candele.`;
   } catch (err) {
