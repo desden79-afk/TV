@@ -188,6 +188,111 @@ def backtest_compare(req: CompareRequest) -> dict[str, Any]:
     }
 
 
+class SweepVariable(BaseModel):
+    path: str
+    values: list[float] = Field(..., min_length=1, max_length=30)
+
+
+class SweepRequest(BaseModel):
+    symbol: str = "BTC/USDT"
+    timeframe: Timeframe = "1h"
+    limit: int = Field(500, ge=10, le=1000)
+    starting_capital: float = 10_000.0
+    fee_pct: float = 0.001
+    slippage_pct: float = 0.0005
+    strategy: dict[str, Any]
+    variables: list[SweepVariable] = Field(..., min_length=1, max_length=2)
+
+
+_SWEEP_MAX_COMBOS = 200
+
+
+def _set_path(obj: dict, path: str, value: Any) -> None:
+    """Imposta un valore in un dict annidato seguendo un path con segmenti
+    separati da '.'. I segmenti numerici sono trattati come indici di lista."""
+    parts = path.split(".")
+    cur: Any = obj
+    for part in parts[:-1]:
+        if isinstance(cur, list):
+            cur = cur[int(part)]
+        else:
+            cur = cur[part]
+    last = parts[-1]
+    if isinstance(cur, list):
+        cur[int(last)] = value
+    else:
+        cur[last] = value
+
+
+@app.post("/api/backtest/sweep")
+def backtest_sweep(req: SweepRequest) -> dict[str, Any]:
+    # Validazione: numero combinazioni
+    combos_count = 1
+    for v in req.variables:
+        combos_count *= len(v.values)
+    if combos_count > _SWEEP_MAX_COMBOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Troppe combinazioni ({combos_count}): massimo {_SWEEP_MAX_COMBOS}.",
+        )
+
+    try:
+        candles = fetch_ohlcv(symbol=req.symbol, timeframe=req.timeframe, limit=req.limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Errore caricamento dati: {exc}")
+
+    candle_dicts = [c.__dict__ for c in candles]
+    config = BacktestConfig(
+        starting_capital=req.starting_capital,
+        fee_pct=req.fee_pct,
+        slippage_pct=req.slippage_pct,
+        bars_per_year=_bars_per_year(req.timeframe),
+    )
+
+    import copy
+    results: list[dict[str, Any]] = []
+
+    def run_combo(combo_values: list[float]) -> None:
+        strat_dict = copy.deepcopy(req.strategy)
+        combo_map: dict[str, float] = {}
+        try:
+            for var, val in zip(req.variables, combo_values):
+                _set_path(strat_dict, var.path, val)
+                combo_map[var.path] = val
+        except (KeyError, IndexError, ValueError) as exc:
+            results.append({"combo": combo_map, "error": f"Path non valido: {exc}"})
+            return
+        try:
+            strategy = Strategy.from_dict(strat_dict)
+            outcome = run_backtest(candle_dicts, strategy, config)
+            results.append({
+                "combo": combo_map,
+                "metrics": outcome["metrics"],
+                "num_trades": len(outcome["trades"]),
+            })
+        except (ValueError, KeyError) as exc:
+            results.append({"combo": combo_map, "error": f"Strategia non valida: {exc}"})
+        except Exception as exc:
+            results.append({"combo": combo_map, "error": f"Errore: {exc}"})
+
+    # Iterazione cartesiana sulle variabili
+    if len(req.variables) == 1:
+        for v in req.variables[0].values:
+            run_combo([v])
+    else:
+        for a in req.variables[0].values:
+            for b in req.variables[1].values:
+                run_combo([a, b])
+
+    return {
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "candles_count": len(candle_dicts),
+        "variables": [{"path": v.path, "values": v.values} for v in req.variables],
+        "results": results,
+    }
+
+
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 

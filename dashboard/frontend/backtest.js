@@ -28,6 +28,8 @@ tabButtons.forEach((btn) => {
       if (btChart) requestAnimationFrame(btResize);
     } else if (target === "compare") {
       if (typeof cmpOnTabActivate === "function") cmpOnTabActivate();
+    } else if (target === "sweep") {
+      if (typeof swOnTabActivate === "function") swOnTabActivate();
     } else if (target === "chart") {
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     }

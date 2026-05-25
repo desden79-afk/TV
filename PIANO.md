@@ -63,8 +63,14 @@ una venue testnet raggiungibile (es. Bybit testnet) oppure un proxy.
 - Simulazione su dati storici
 - Report: profitto, % vincenti, drawdown, equity curve
 - Confronto di N strategie sulla stessa serie di candele (tab "Confronto"):
-  slot indipendenti con JSON libero, tabella metriche affiancate e
-  highlight automatico della migliore per ogni metrica
+  slot indipendenti con JSON libero, tabella metriche affiancate, equity
+  curve sovrapposte e libreria strategie salvate (localStorage)
+- Metriche Sharpe e Sortino annualizzate sui ritorni per-barra dell'equity
+  curve (annualizzazione derivata dal timeframe)
+- Parameter sweep (tab "Sweep"): grid search su 1 o 2 parametri della
+  stessa strategia. Auto-discovery dei parametri numerici (indicatori +
+  SL/TP). Tabella 1D con miglior valore evidenziato, heatmap 2D con
+  gradiente rosso→giallo→verde sulla metrica scelta.
 
 ### Fase 3 — Paper trading live
 - Esecuzione strategie su Binance Testnet (soldi finti, prezzi reali)

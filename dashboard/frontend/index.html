@@ -13,6 +13,7 @@
       <button data-tab="chart" class="tab-btn active">Grafico</button>
       <button data-tab="backtest" class="tab-btn">Backtest</button>
       <button data-tab="compare" class="tab-btn">Confronto</button>
+      <button data-tab="sweep" class="tab-btn">Sweep</button>
     </nav>
   </header>
 
@@ -237,6 +238,80 @@
       </div>
     </section>
   </div>
+
+  <div class="tab-panel hidden" data-tab="sweep">
+    <aside class="sidebar">
+      <button id="sw-run">Esegui sweep</button>
+      <p id="sw-status" class="status">Pronto.</p>
+
+      <section>
+        <h2>Strategia di base</h2>
+        <label>Carica da
+          <select id="sw-load"></select>
+        </label>
+        <label>JSON strategia
+          <textarea id="sw-strategy" rows="12" spellcheck="false"></textarea>
+        </label>
+      </section>
+
+      <section>
+        <h2>Variabili (1 o 2)</h2>
+        <p class="hint">Scegli i parametri numerici da variare e indica i valori (separati da virgola) oppure un range <code>min:max:step</code>.</p>
+        <div id="sw-vars" class="sw-vars"></div>
+      </section>
+
+      <section>
+        <h2>Mercato</h2>
+        <label>Simbolo
+          <select id="sw-symbol"></select>
+        </label>
+        <label>Timeframe
+          <select id="sw-timeframe">
+            <option value="15m">15 minuti</option>
+            <option value="1h" selected>1 ora</option>
+            <option value="4h">4 ore</option>
+            <option value="1d">1 giorno</option>
+          </select>
+        </label>
+        <label>N. candele storiche
+          <input id="sw-limit" type="number" min="100" max="1000" step="50" value="500" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Costi</h2>
+        <label>Capitale iniziale (USDT)
+          <input id="sw-capital" type="number" min="100" step="100" value="10000" />
+        </label>
+        <label>Fee % per lato
+          <input id="sw-fee" type="number" min="0" step="0.01" value="0.1" />
+        </label>
+        <label>Slippage % per lato
+          <input id="sw-slip" type="number" min="0" step="0.01" value="0.05" />
+        </label>
+      </section>
+    </aside>
+
+    <section class="sw-content">
+      <div class="sw-toolbar">
+        <label>Metrica
+          <select id="sw-metric">
+            <option value="total_return_pct">Return totale</option>
+            <option value="sharpe">Sharpe</option>
+            <option value="sortino">Sortino</option>
+            <option value="win_rate">Win rate</option>
+            <option value="profit_factor">Profit factor</option>
+            <option value="max_drawdown_pct">Max drawdown</option>
+            <option value="num_trades">N. trade</option>
+          </select>
+        </label>
+        <span id="sw-best" class="sw-best"></span>
+      </div>
+      <div id="sw-results-wrap" class="sw-results-wrap hidden">
+        <div id="sw-results"></div>
+      </div>
+    </section>
+  </div>
   </main>
 
   <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
@@ -244,5 +319,6 @@
   <script src="/app.js"></script>
   <script src="/backtest.js"></script>
   <script src="/compare.js"></script>
+  <script src="/sweep.js"></script>
 </body>
 </html>
