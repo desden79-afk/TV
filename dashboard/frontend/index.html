@@ -91,6 +91,16 @@
           JSON strategia
           <textarea id="bt-strategy" rows="14" spellcheck="false"></textarea>
         </label>
+
+        <div class="risk-fields">
+          <label>Stop loss %
+            <input id="bt-sl" type="number" min="0" step="0.1" placeholder="off" />
+          </label>
+          <label>Take profit %
+            <input id="bt-tp" type="number" min="0" step="0.1" placeholder="off" />
+          </label>
+        </div>
+        <p class="hint">Lascia vuoto per disattivare. Valore in % sul prezzo di entry (es. 3 = 3%).</p>
       </section>
 
       <section>

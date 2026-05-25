@@ -27,6 +27,8 @@ const btLimitEl     = document.getElementById("bt-limit");
 const btCapitalEl   = document.getElementById("bt-capital");
 const btFeeEl       = document.getElementById("bt-fee");
 const btSlipEl      = document.getElementById("bt-slip");
+const btSlEl        = document.getElementById("bt-sl");
+const btTpEl        = document.getElementById("bt-tp");
 const btRunEl       = document.getElementById("bt-run");
 const btStatusEl    = document.getElementById("bt-status");
 const btMetricsEl   = document.getElementById("bt-metrics");
@@ -70,7 +72,13 @@ const PRESETS = {
 
 function loadBtStrategyFromPreset(key) {
   if (!key || !PRESETS[key]) return;
-  btStrategyEl.value = JSON.stringify(PRESETS[key], null, 2);
+  // Estrai SL/TP nei campi dedicati e rimuovili dal JSON visibile
+  const preset = { ...PRESETS[key] };
+  btSlEl.value = preset.stop_loss_pct != null ? (preset.stop_loss_pct * 100) : "";
+  btTpEl.value = preset.take_profit_pct != null ? (preset.take_profit_pct * 100) : "";
+  delete preset.stop_loss_pct;
+  delete preset.take_profit_pct;
+  btStrategyEl.value = JSON.stringify(preset, null, 2);
   saveBtState();
 }
 
@@ -136,6 +144,8 @@ function saveBtState() {
       capital: btCapitalEl.value,
       fee: btFeeEl.value,
       slip: btSlipEl.value,
+      sl: btSlEl.value,
+      tp: btTpEl.value,
     }));
   } catch (e) { /* ignora */ }
 }
@@ -151,6 +161,8 @@ function loadBtState() {
     if (p.capital) btCapitalEl.value = p.capital;
     if (p.fee) btFeeEl.value = p.fee;
     if (p.slip) btSlipEl.value = p.slip;
+    if (p.sl != null) btSlEl.value = p.sl;
+    if (p.tp != null) btTpEl.value = p.tp;
     // symbol viene applicato dopo populateBtSymbols
     return p;
   } catch (e) { return null; }
@@ -185,7 +197,7 @@ async function populateBtSymbols(preferredSymbol) {
   }
 }
 
-[btStrategyEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl]
+[btStrategyEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl, btSlEl, btTpEl]
   .forEach((el) => el.addEventListener("change", saveBtState));
 
 // ---- Run backtest ----
@@ -290,6 +302,14 @@ async function runBacktest() {
     return;
   }
 
+  // Override SL/TP dai campi dedicati: vuoto = disattivato.
+  const slRaw = btSlEl.value.trim();
+  const tpRaw = btTpEl.value.trim();
+  if (slRaw === "") delete strategy.stop_loss_pct;
+  else strategy.stop_loss_pct = (parseFloat(slRaw) || 0) / 100;
+  if (tpRaw === "") delete strategy.take_profit_pct;
+  else strategy.take_profit_pct = (parseFloat(tpRaw) || 0) / 100;
+
   ensureCharts();
   btResize();
 
@@ -335,10 +355,32 @@ btRunEl.addEventListener("click", runBacktest);
 
 // ---- Init ----
 
+function migrateStrategyJsonIntoFields() {
+  // Se il textarea ha ancora stop_loss_pct/take_profit_pct nel JSON (state
+  // salvato da versioni precedenti), spostali nei campi e ripulisci il JSON.
+  try {
+    const obj = JSON.parse(btStrategyEl.value);
+    let changed = false;
+    if (obj.stop_loss_pct != null && btSlEl.value === "") {
+      btSlEl.value = obj.stop_loss_pct * 100;
+      delete obj.stop_loss_pct;
+      changed = true;
+    }
+    if (obj.take_profit_pct != null && btTpEl.value === "") {
+      btTpEl.value = obj.take_profit_pct * 100;
+      delete obj.take_profit_pct;
+      changed = true;
+    }
+    if (changed) btStrategyEl.value = JSON.stringify(obj, null, 2);
+  } catch (e) { /* JSON non parsabile: ignora */ }
+}
+
 (async function btInit() {
   const saved = loadBtState();
   if (!btStrategyEl.value) {
     loadBtStrategyFromPreset("rsi_rebound");
+  } else {
+    migrateStrategyJsonIntoFields();
   }
   await populateBtSymbols(saved && saved.symbol);
   saveBtState();
