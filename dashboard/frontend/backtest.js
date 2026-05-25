@@ -10,9 +10,21 @@ tabButtons.forEach((btn) => {
     tabPanels.forEach((p) => p.classList.toggle("hidden", p.dataset.tab !== target));
     // dopo lo switch, ridimensiona i grafici del tab che diventa visibile
     if (target === "backtest") {
-      // eredita simbolo e timeframe dal tab Grafico
-      if (btSymbolEl && symbolEl) btSymbolEl.value = symbolEl.value;
-      if (btTimeframeEl && timeframeEl) btTimeframeEl.value = timeframeEl.value;
+      // Eredita simbolo/timeframe dal tab Grafico SOLO la prima volta che si
+      // apre questo tab (es. caricamento pagina). Dopo, la scelta dell'utente
+      // qui dentro è indipendente.
+      if (!btTabFirstActivationDone) {
+        btTabFirstActivationDone = true;
+        // se non c'era un simbolo persistito, eredita quello del tab Grafico
+        if (!btHadSavedSymbol && btSymbolEl && symbolEl && symbolEl.value
+            && [...btSymbolEl.options].some((o) => o.value === symbolEl.value)) {
+          btSymbolEl.value = symbolEl.value;
+        }
+        // timeframe segue la stessa logica
+        if (!btHadSavedTimeframe && btTimeframeEl && timeframeEl && timeframeEl.value) {
+          btTimeframeEl.value = timeframeEl.value;
+        }
+      }
       if (btChart) requestAnimationFrame(btResize);
     } else if (target === "compare") {
       if (typeof cmpOnTabActivate === "function") cmpOnTabActivate();
@@ -23,6 +35,14 @@ tabButtons.forEach((btn) => {
 });
 
 // ---- Backtest UI ----
+
+// flag: true dopo che l'utente ha aperto il tab Backtest almeno una volta
+let btTabFirstActivationDone = false;
+// true se loadBtState ha trovato un simbolo/timeframe persistiti (in tal
+// caso non vogliamo che il primo tab-switch li sovrascriva con quelli del
+// tab Grafico)
+let btHadSavedSymbol = false;
+let btHadSavedTimeframe = false;
 
 const btPresetEl    = document.getElementById("bt-preset");
 const btStrategyEl  = document.getElementById("bt-strategy");
@@ -329,7 +349,8 @@ function loadBtState() {
     const p = JSON.parse(raw);
     if (p.strategy) btStrategyEl.value = p.strategy;
     if (p.mode) btModeEl.value = p.mode;
-    if (p.timeframe) btTimeframeEl.value = p.timeframe;
+    if (p.symbol) btHadSavedSymbol = true;
+    if (p.timeframe) { btTimeframeEl.value = p.timeframe; btHadSavedTimeframe = true; }
     if (p.limit) btLimitEl.value = p.limit;
     if (p.capital) btCapitalEl.value = p.capital;
     if (p.fee) btFeeEl.value = p.fee;
