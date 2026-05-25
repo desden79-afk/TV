@@ -233,6 +233,7 @@ function defaultParams(type) {
     case "rsi": return { period: 14 };
     case "macd": return { fast: 12, slow: 26, signal: 9 };
     case "adx": return { period: 14 };
+    default: return null;
   }
 }
 
@@ -263,7 +264,7 @@ function renderIndicatorList() {
       <div class="indicator-controls"></div>
     `;
     const controls = li.querySelector(".indicator-controls");
-    Object.entries(ind.params).forEach(([key, value]) => {
+    Object.entries(ind.params || {}).forEach(([key, value]) => {
       const wrap = document.createElement("label");
       wrap.className = "param-input";
       wrap.innerHTML = `<span>${key}</span>`;
@@ -298,11 +299,16 @@ function clearIndicatorPrimitives(ind) {
 
 function addIndicator() {
   const type = indicatorTypeEl.value;
+  const params = defaultParams(type);
+  if (!params) {
+    console.warn(`Indicatore non supportato: ${type}`);
+    return;
+  }
   const color = PALETTE[(state.nextId - 1) % PALETTE.length];
   const ind = {
     id: `ind-${state.nextId++}`,
     type,
-    params: defaultParams(type),
+    params,
     color,
     primitives: [],
   };
