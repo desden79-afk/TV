@@ -78,7 +78,7 @@ btPresetEl.addEventListener("change", () => loadBtStrategyFromPreset(btPresetEl.
 
 // ---- Charts (lazy) ----
 
-const chartTheme = {
+const btChartTheme = {
   layout: { background: { color: "#161b25" }, textColor: "#e6e9ef" },
   grid: { vertLines: { color: "#232a38" }, horzLines: { color: "#232a38" } },
   timeScale: { timeVisible: true, secondsVisible: false },
@@ -92,12 +92,12 @@ let btEquitySeries = null;
 
 function ensureCharts() {
   if (btChart) return;
-  btChart = LightweightCharts.createChart(btChartEl, chartTheme);
+  btChart = LightweightCharts.createChart(btChartEl, btChartTheme);
   btCandleSeries = btChart.addCandlestickSeries({
     upColor: "#26a69a", downColor: "#ef5350",
     borderVisible: false, wickUpColor: "#26a69a", wickDownColor: "#ef5350",
   });
-  btEquityChart = LightweightCharts.createChart(btEquityEl, chartTheme);
+  btEquityChart = LightweightCharts.createChart(btEquityEl, btChartTheme);
   btEquitySeries = btEquityChart.addAreaSeries({
     lineColor: "#4ea1ff",
     topColor: "rgba(78,161,255,0.4)",
