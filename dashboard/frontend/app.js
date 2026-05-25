@@ -232,6 +232,7 @@ function defaultParams(type) {
     case "ema": return { period: 20 };
     case "rsi": return { period: 14 };
     case "macd": return { fast: 12, slow: 26, signal: 9 };
+    case "adx": return { period: 14 };
   }
 }
 
@@ -240,6 +241,7 @@ function paramsLabel(ind) {
     case "sma":
     case "ema":
     case "rsi":
+    case "adx":
       return `period: ${ind.params.period}`;
     case "macd":
       return `${ind.params.fast}/${ind.params.slow}/${ind.params.signal}`;
@@ -351,10 +353,6 @@ function renderIndicator(ind, result) {
     const series = chart.addLineSeries({ color: ind.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
     series.setData(buildLineData(times, result.series.value));
     ind.primitives.push({ chart, series });
-  } else if (ind.type === "rsi") {
-    const series = oscChart.addLineSeries({ color: ind.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
-    series.setData(buildLineData(times, result.series.value));
-    ind.primitives.push({ chart: oscChart, series });
   } else if (ind.type === "macd") {
     const macdLine = oscChart.addLineSeries({ color: ind.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
     macdLine.setData(buildLineData(times, result.series.macd));
@@ -365,6 +363,11 @@ function renderIndicator(ind, result) {
     ind.primitives.push({ chart: oscChart, series: macdLine });
     ind.primitives.push({ chart: oscChart, series: signalLine });
     ind.primitives.push({ chart: oscChart, series: hist });
+  } else if (result.pane === "oscillator") {
+    // Generic oscillator rendering (RSI, ADX, etc.)
+    const series = oscChart.addLineSeries({ color: ind.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+    series.setData(buildLineData(times, result.series.value));
+    ind.primitives.push({ chart: oscChart, series });
   }
 }
 
