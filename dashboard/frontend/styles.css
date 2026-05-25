@@ -63,6 +63,8 @@ main {
 
 .sidebar {
   width: 280px;
+  min-width: 240px;
+  max-width: 500px;
   padding: 16px;
   border-right: 1px solid var(--border);
   background: var(--panel);
@@ -70,6 +72,8 @@ main {
   flex-direction: column;
   gap: 18px;
   overflow-y: auto;
+  resize: horizontal;
+  flex-shrink: 0;
 }
 
 .sidebar section {
@@ -260,8 +264,8 @@ main {
 }
 
 .risk-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 .hint { font-size: 11px; color: var(--muted); margin: -4px 0 0 0; }
