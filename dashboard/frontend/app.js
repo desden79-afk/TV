@@ -4,6 +4,7 @@ const reloadEl = document.getElementById("reload");
 const statusEl = document.getElementById("status");
 const chartEl = document.getElementById("chart");
 const oscEl = document.getElementById("osc-chart");
+const oscPaneEl = oscEl.parentElement; // wrapper .pane-wrap.osc-pane (gestisce visibilità)
 const indicatorTypeEl = document.getElementById("indicator-type");
 const addIndicatorEl = document.getElementById("add-indicator");
 const indicatorListEl = document.getElementById("indicator-list");
@@ -221,7 +222,7 @@ function hasOscillator() {
 }
 
 function toggleOscPane() {
-  oscEl.classList.toggle("hidden", !hasOscillator());
+  oscPaneEl.classList.toggle("hidden", !hasOscillator());
   resize();
 }
 
