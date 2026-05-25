@@ -71,7 +71,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  overflow-y: auto;
+  overflow: auto;
   resize: horizontal;
   flex-shrink: 0;
 }

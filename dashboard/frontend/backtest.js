@@ -9,8 +9,11 @@ tabButtons.forEach((btn) => {
     tabButtons.forEach((b) => b.classList.toggle("active", b === btn));
     tabPanels.forEach((p) => p.classList.toggle("hidden", p.dataset.tab !== target));
     // dopo lo switch, ridimensiona i grafici del tab che diventa visibile
-    if (target === "backtest" && btChart) {
-      requestAnimationFrame(btResize);
+    if (target === "backtest") {
+      // eredita simbolo e timeframe dal tab Grafico
+      if (btSymbolEl && symbolEl) btSymbolEl.value = symbolEl.value;
+      if (btTimeframeEl && timeframeEl) btTimeframeEl.value = timeframeEl.value;
+      if (btChart) requestAnimationFrame(btResize);
     } else if (target === "chart") {
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     }
