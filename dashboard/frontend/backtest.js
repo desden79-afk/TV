@@ -24,6 +24,7 @@ tabButtons.forEach((btn) => {
 
 const btPresetEl    = document.getElementById("bt-preset");
 const btStrategyEl  = document.getElementById("bt-strategy");
+const btModeEl      = document.getElementById("bt-mode");
 const btSymbolEl    = document.getElementById("bt-symbol");
 const btTimeframeEl = document.getElementById("bt-timeframe");
 const btLimitEl     = document.getElementById("bt-limit");
@@ -160,6 +161,7 @@ function saveBtState() {
   try {
     localStorage.setItem(BT_STORAGE_KEY, JSON.stringify({
       strategy: btStrategyEl.value,
+      mode: btModeEl.value,
       symbol: btSymbolEl.value,
       timeframe: btTimeframeEl.value,
       limit: btLimitEl.value,
@@ -178,6 +180,7 @@ function loadBtState() {
     if (!raw) return;
     const p = JSON.parse(raw);
     if (p.strategy) btStrategyEl.value = p.strategy;
+    if (p.mode) btModeEl.value = p.mode;
     if (p.timeframe) btTimeframeEl.value = p.timeframe;
     if (p.limit) btLimitEl.value = p.limit;
     if (p.capital) btCapitalEl.value = p.capital;
@@ -219,7 +222,7 @@ async function populateBtSymbols(preferredSymbol) {
   }
 }
 
-[btStrategyEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl, btSlEl, btTpEl]
+[btStrategyEl, btModeEl, btSymbolEl, btTimeframeEl, btLimitEl, btCapitalEl, btFeeEl, btSlipEl, btSlEl, btTpEl]
   .forEach((el) => el.addEventListener("change", saveBtState));
 
 // ---- Run backtest ----
@@ -319,6 +322,14 @@ async function runBacktest() {
     btStatusEl.textContent = `JSON non valido: ${e.message}`;
     return;
   }
+  // Applica la modalità operativa scelta
+  const mode = btModeEl.value;
+  if (mode === "long") {
+    delete strategy.short;
+  } else if (mode === "short") {
+    delete strategy.long;
+  }
+  // "both" mantiene sia long che short se presenti
   if (!strategy.long && !strategy.short) {
     btStatusEl.textContent = "La strategia deve avere almeno una sezione 'long' o 'short'.";
     return;
