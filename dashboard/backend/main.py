@@ -119,6 +119,57 @@ def backtest(req: BacktestRequest) -> dict[str, Any]:
     }
 
 
+class CompareStrategy(BaseModel):
+    name: str = "strategia"
+    strategy: dict[str, Any]
+
+
+class CompareRequest(BaseModel):
+    symbol: str = "BTC/USDT"
+    timeframe: Timeframe = "1h"
+    limit: int = Field(500, ge=10, le=1000)
+    starting_capital: float = 10_000.0
+    fee_pct: float = 0.001
+    slippage_pct: float = 0.0005
+    strategies: list[CompareStrategy] = Field(..., min_length=1, max_length=6)
+
+
+@app.post("/api/backtest/compare")
+def backtest_compare(req: CompareRequest) -> dict[str, Any]:
+    try:
+        candles = fetch_ohlcv(symbol=req.symbol, timeframe=req.timeframe, limit=req.limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Errore caricamento dati: {exc}")
+
+    candle_dicts = [c.__dict__ for c in candles]
+    config = BacktestConfig(
+        starting_capital=req.starting_capital,
+        fee_pct=req.fee_pct,
+        slippage_pct=req.slippage_pct,
+    )
+
+    results: list[dict[str, Any]] = []
+    for spec in req.strategies:
+        entry: dict[str, Any] = {"name": spec.name}
+        try:
+            strategy = Strategy.from_dict(spec.strategy)
+            outcome = run_backtest(candle_dicts, strategy, config)
+            entry["metrics"] = outcome["metrics"]
+            entry["num_trades"] = len(outcome["trades"])
+        except (ValueError, KeyError) as exc:
+            entry["error"] = f"Strategia non valida: {exc}"
+        except Exception as exc:
+            entry["error"] = f"Errore: {exc}"
+        results.append(entry)
+
+    return {
+        "symbol": req.symbol,
+        "timeframe": req.timeframe,
+        "candles_count": len(candle_dicts),
+        "results": results,
+    }
+
+
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 

@@ -62,6 +62,9 @@ una venue testnet raggiungibile (es. Bybit testnet) oppure un proxy.
 - Definizione strategie (regole di entry/exit)
 - Simulazione su dati storici
 - Report: profitto, % vincenti, drawdown, equity curve
+- Confronto di N strategie sulla stessa serie di candele (tab "Confronto"):
+  slot indipendenti con JSON libero, tabella metriche affiancate e
+  highlight automatico della migliore per ogni metrica
 
 ### Fase 3 — Paper trading live
 - Esecuzione strategie su Binance Testnet (soldi finti, prezzi reali)

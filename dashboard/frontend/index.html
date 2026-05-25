@@ -12,6 +12,7 @@
     <nav class="tabs">
       <button data-tab="chart" class="tab-btn active">Grafico</button>
       <button data-tab="backtest" class="tab-btn">Backtest</button>
+      <button data-tab="compare" class="tab-btn">Confronto</button>
     </nav>
   </header>
 
@@ -170,10 +171,63 @@
       </div>
     </section>
   </div>
+
+  <div class="tab-panel hidden" data-tab="compare">
+    <aside class="sidebar">
+      <button id="cmp-run">Esegui confronto</button>
+      <p id="cmp-status" class="status">Pronto.</p>
+
+      <section>
+        <h2>Mercato</h2>
+        <label>Simbolo
+          <select id="cmp-symbol"></select>
+        </label>
+        <label>Timeframe
+          <select id="cmp-timeframe">
+            <option value="15m">15 minuti</option>
+            <option value="1h" selected>1 ora</option>
+            <option value="4h">4 ore</option>
+            <option value="1d">1 giorno</option>
+          </select>
+        </label>
+        <label>N. candele storiche
+          <input id="cmp-limit" type="number" min="100" max="1000" step="50" value="500" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Costi</h2>
+        <label>Capitale iniziale (USDT)
+          <input id="cmp-capital" type="number" min="100" step="100" value="10000" />
+        </label>
+        <label>Fee % per lato
+          <input id="cmp-fee" type="number" min="0" step="0.01" value="0.1" />
+        </label>
+        <label>Slippage % per lato
+          <input id="cmp-slip" type="number" min="0" step="0.01" value="0.05" />
+        </label>
+      </section>
+
+      <section>
+        <h2>Strategie</h2>
+        <p class="hint">Modifica il JSON di ciascuno slot. SL/TP vanno specificati dentro <code>long</code>/<code>short</code>.</p>
+        <button id="cmp-add-slot" class="btn-secondary">+ Aggiungi slot</button>
+      </section>
+    </aside>
+
+    <section class="cmp-content">
+      <div id="cmp-slots" class="cmp-slots"></div>
+      <div id="cmp-results-wrap" class="cmp-results-wrap hidden">
+        <h3>Risultati</h3>
+        <div id="cmp-results"></div>
+      </div>
+    </section>
+  </div>
   </main>
 
   <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
   <script src="/app.js"></script>
   <script src="/backtest.js"></script>
+  <script src="/compare.js"></script>
 </body>
 </html>

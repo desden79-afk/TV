@@ -357,6 +357,147 @@ main {
 .legend-label { color: var(--muted); }
 .legend-up { color: #26a69a; }
 .legend-down { color: #ef5350; }
+
+/* ---- Compare tab ---- */
+
+.cmp-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.cmp-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.cmp-slot {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cmp-slot-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cmp-slot-num {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: ui-monospace, monospace;
+}
+
+.cmp-slot-name {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.cmp-slot-remove {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.cmp-slot-remove:hover { color: #ef5350; }
+
+.cmp-slot-json {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  resize: vertical;
+  width: 100%;
+}
+
+.cmp-results-wrap {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.cmp-results-wrap h3 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cmp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+
+.cmp-table th,
+.cmp-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cmp-table thead th {
+  background: var(--bg);
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+
+.cmp-table .cmp-row-head {
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: none;
+}
+
+.cmp-best {
+  color: #26a69a;
+  font-weight: 600;
+  background: rgba(38, 166, 154, 0.08);
+}
+
+.cmp-error-row td {
+  color: var(--muted);
+  font-size: 11px;
+}
+.cmp-err {
+  color: #ef5350;
+  white-space: normal;
+  word-break: break-word;
+}
 .legend-dot {
   display: inline-block;
   width: 8px;

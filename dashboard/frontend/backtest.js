@@ -14,6 +14,8 @@ tabButtons.forEach((btn) => {
       if (btSymbolEl && symbolEl) btSymbolEl.value = symbolEl.value;
       if (btTimeframeEl && timeframeEl) btTimeframeEl.value = timeframeEl.value;
       if (btChart) requestAnimationFrame(btResize);
+    } else if (target === "compare") {
+      if (typeof cmpOnTabActivate === "function") cmpOnTabActivate();
     } else if (target === "chart") {
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     }
